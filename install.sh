@@ -11,8 +11,15 @@ pkg install -y clang rust python binutils git
 # Set Android API Level for native compilation
 export ANDROID_API_LEVEL=24
 
-# Install the package in editable mode
-echo "🐍 Installing Agentic CLI..."
-pip install -e .
+# Install uv for faster dependency management if not present
+if ! command -v uv &> /dev/null; then
+    echo "📦 Installing uv..."
+    pkg install -y uv
+fi
+
+# Install the package as a tool using uv
+echo "🐍 Installing Agentic CLI with uv..."
+uv tool install . --force
 
 echo "✅ Setup complete! You can now run the assistant by typing: agentic-cli"
+echo "💡 Alternatively, you can run it without permanent installation using: uvx --from . agentic-cli"
