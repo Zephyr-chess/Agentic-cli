@@ -27,6 +27,11 @@ def generate(formatted_prompt):
         text += chunk['choices'][0]['text']
         yield text
 
-# Expose the execution stream via a lightweight Gradio interface
-iface = gr.Interface(fn=generate, inputs="text", outputs="text")
-iface.launch()
+# Use Blocks to explicitly define the API name
+with gr.Blocks() as demo:
+    prompt_input = gr.Textbox(label="Prompt")
+    output_text = gr.Textbox(label="Generated Text")
+    btn = gr.Button("Generate")
+    btn.click(fn=generate, inputs=prompt_input, outputs=output_text, api_name="predict")
+
+demo.launch()

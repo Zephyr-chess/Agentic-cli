@@ -117,7 +117,12 @@ Always use Markdown for your responses when not using a tool."""
                 response_text = ""
                 with Live(Spinner("dots", text="Jules is thinking...", style="cyan"), refresh_per_second=10, console=console, transient=True) as live:
                     try:
-                        job = client.submit(prompt, api_name="/predict")
+                        # Try /predict then predict if first fails
+                        try:
+                            job = client.submit(prompt, api_name="/predict")
+                        except ValueError:
+                            job = client.submit(prompt, api_name="predict")
+
                         for text_chunk in job:
                             if isinstance(text_chunk, str):
                                 response_text = text_chunk
