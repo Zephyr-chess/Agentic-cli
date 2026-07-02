@@ -5,11 +5,14 @@ A local AI coding assistant designed for Android Termux, with remote inference p
 ## Features
 - **Local Execution:** Runs shell commands and modifies files directly on your device.
 - **Claude-style UI:** Beautiful terminal interface using `rich`.
-- **Zero-Cost Inference:** Uses Qwen 2.5 Coder 3B Instruct on Hugging Face Free Tier.
+- **Multi-Backend Support:** Switch between Hugging Face Space and OpenRouter.
+- **Flexible Models:** Supports powerful models like Llama 3 70B via OpenRouter.
 - **Optimized for Termux:** Tailored setup for Android environments.
 
 ## Architecture
-- **Backend:** Hugging Face Space running `llama-cpp-python` with Gradio.
+- **Backends:**
+  - Hugging Face Space running `llama-cpp-python` with Gradio (Default).
+  - OpenRouter API for high-performance models.
 - **Client:** Python CLI tool using `gradio_client` and `rich`.
 
 ## Installation (Termux)
@@ -30,6 +33,31 @@ A local AI coding assistant designed for Android Termux, with remote inference p
    ```bash
    agentic-cli
    ```
+
+## Configuration
+
+### OpenRouter Setup
+To use OpenRouter, set your API key:
+```bash
+export OPENROUTER_API_KEY=your_key_here
+```
+In the CLI, switch backends:
+```text
+/backend openrouter
+/model meta-llama/llama-3.1-70b-instruct
+```
+
+### Hugging Face Setup
+If you want to use a custom HF Space:
+```bash
+export HF_REPO_ID=your-username/your-space-name
+```
+
+## CLI Commands
+- `/model <name>`: Change the OpenRouter model.
+- `/backend <hf|openrouter>`: Switch between backends.
+- `/status`: Show current configuration.
+- `exit`: Quit the session.
 
 ## Backend Deployment (Hugging Face)
 
