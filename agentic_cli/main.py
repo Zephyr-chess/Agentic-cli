@@ -64,13 +64,19 @@ class AgentConfig:
             json.dump(self.data, f, indent=2)
 
     @property
-    def backend(self): return self.data.get("backend", "openrouter")
+    def backend(self):
+        b = self.data.get("backend", "openrouter")
+        if b not in self.data or not isinstance(self.data[b], dict):
+            return "openrouter"
+        return b
+
     @backend.setter
     def backend(self, val): self.data["backend"] = val
 
     @property
     def current_model(self):
-        return self.data[self.backend].get("model", "")
+        b = self.backend
+        return self.data[b].get("model", "")
 
 config = AgentConfig()
 
