@@ -6,10 +6,9 @@ echo "🚀 Initializing Agentic CLI Setup for Termux..."
 # Update and install system dependencies
 echo "📦 Installing system dependencies..."
 pkg update -y
-pkg install -y clang rust python binutils git
+pkg install -y python git
 
-# Set Android API Level for native compilation
-export ANDROID_API_LEVEL=24
+# uv is much faster for managing tools
 
 # Install uv for faster dependency management if not present
 if ! command -v uv &> /dev/null; then
