@@ -24,7 +24,7 @@ custom_theme = Theme({
 console = Console(theme=custom_theme)
 
 CONFIG_PATH = os.path.expanduser("~/.agentic_cli_config.json")
-DEFAULT_MODEL = "qwen/qwen-turbo" # Qwen 2.5 480B Turbo on OpenRouter is typically the fastest large free/cheap model
+DEFAULT_MODEL = "qwen/qwen-2-72b-instruct:free" # Using the high-performance free Qwen model
 
 class AgentConfig:
     def __init__(self):
