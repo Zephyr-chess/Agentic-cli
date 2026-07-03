@@ -1,19 +1,12 @@
 # Agentic CLI
 
-A local AI coding assistant designed for Android Termux, with remote inference powered by Hugging Face Spaces.
+A lightweight AI coding assistant for Android Termux, powered by OpenRouter.
 
 ## Features
-- **Local Execution:** Runs shell commands and modifies files directly on your device.
+- **Local Execution:** Runs shell commands and modifies files directly in Termux.
 - **Claude-style UI:** Beautiful terminal interface using `rich`.
-- **Multi-Backend Support:** Switch between Hugging Face Space and OpenRouter.
-- **Flexible Models:** Supports powerful models like Llama 3 70B via OpenRouter.
-- **Optimized for Termux:** Tailored setup for Android environments.
-
-## Architecture
-- **Backends:**
-  - Hugging Face Space running `llama-cpp-python` with Gradio (Default).
-  - OpenRouter API for high-performance models.
-- **Client:** Python CLI tool using `gradio_client` and `rich`.
+- **High Performance:** Defaults to Qwen 2 72B Instruct (Free) via OpenRouter.
+- **Fast & Minimal:** No local LLM overhead, zero-cost inference.
 
 ## Installation (Termux)
 
@@ -33,41 +26,7 @@ A local AI coding assistant designed for Android Termux, with remote inference p
    ```bash
    agentic-cli
    ```
+   *On the first run, you will be prompted for your OpenRouter API Key.*
 
 ## Configuration
-
-### OpenRouter Setup
-To use OpenRouter, set your API key:
-```bash
-export OPENROUTER_API_KEY=your_key_here
-```
-In the CLI, switch backends:
-```text
-/backend openrouter
-/model meta-llama/llama-3.1-70b-instruct
-```
-
-### Hugging Face Setup
-If you want to use a custom HF Space:
-```bash
-export HF_REPO_ID=your-username/your-space-name
-```
-
-## CLI Commands
-- `/model <name>`: Change the OpenRouter model.
-- `/backend <hf|openrouter>`: Switch between backends.
-- `/status`: Show current configuration.
-- `exit`: Quit the session.
-
-## Backend Deployment (Hugging Face)
-
-If you wish to host your own backend:
-1. Create a new Hugging Face Space (Gradio SDK).
-2. Upload the contents of the `backend/` directory.
-3. Update `REPO_ID` in `agentic_cli/main.py` to point to your Space.
-
-## Development
-
-- `backend/`: Files for the Hugging Face Space.
-- `agentic_cli/`: Local client source code.
-- `setup.py`: Package configuration and entry points.
+Settings are stored in `~/.agentic_cli_config.json`. You can manually change the `model` there to any model supported by OpenRouter.
