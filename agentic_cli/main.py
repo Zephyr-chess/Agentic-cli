@@ -21,6 +21,7 @@ custom_theme = Theme({
     "user": "bold green",
     "assistant": "bold blue",
     "tool": "bold yellow",
+    "plan": "bold yellow italic",
 })
 
 console = Console(theme=custom_theme)
@@ -53,6 +54,7 @@ class AgentConfig:
     def default_data(self):
         return {
             "backend": "openrouter",
+            "auto_approve": False,
             "openrouter": {"model": DEFAULT_MODEL, "key": ""},
             "openai": {"model": "gpt-4o", "key": ""},
             "anthropic": {"model": "claude-3-5-sonnet-20240620", "key": ""},
@@ -77,6 +79,11 @@ class AgentConfig:
     def current_model(self):
         b = self.backend
         return self.data[b].get("model", "")
+
+    @property
+    def auto_approve(self): return self.data.get("auto_approve", False)
+    @auto_approve.setter
+    def auto_approve(self, val): self.data["auto_approve"] = val
 
 config = AgentConfig()
 
@@ -182,7 +189,7 @@ def get_anthropic_completion(messages):
 def interactive_setup():
     choice = questionary.select(
         "Agent Setup",
-        choices=["Switch Backend", "Set API Keys", "Change Models", "Use Nemotron Free", "Back"]
+        choices=["Switch Backend", "Set API Keys", "Change Models", "Toggle Auto-Approve", "Use Nemotron Free", "Back"]
     ).ask()
 
     if choice == "Switch Backend":
@@ -211,6 +218,10 @@ def interactive_setup():
         config.data[provider]["model"] = model
         console.print(f"[green]Model updated.[/green]")
 
+    elif choice == "Toggle Auto-Approve":
+        config.auto_approve = not config.auto_approve
+        console.print(f"[green]Auto-Approve: {config.auto_approve}[/green]")
+
     elif choice == "Use Nemotron Free":
         config.backend = "openrouter"
         config.data["openrouter"]["model"] = NEMOTRON_MODEL
@@ -223,19 +234,22 @@ def interactive_setup():
 # ==========================================
 
 def chat_loop():
-    console.print(Panel(Text("Agentic CLI: Local Assistant", style="bold white", justify="center"), style="blue"))
+    console.print(Panel(Text("Agentic CLI: Autonomous Assistant", style="bold white", justify="center"), style="blue"))
 
-    system_prompt = """You are "Jules," an expert software engineer.
-Your goal is to assist the user by reading, writing, and executing code on their filesystem.
+    system_prompt = """You are "Jules," an expert senior software engineer and autonomous agent.
+Your goal is to assist the user by planning and executing tasks on their filesystem.
 
-STRICT TOOL RULES:
-1. Output EXACTLY this format:
+STRICT WORKFLOW RULES:
+1. Always start by providing a short "PLAN" of action.
+2. Output tool calls using this EXACT format:
 <tool>
 {"name": "tool_name", "args": {"arg1": "value"}}
 </tool>
-2. After a tool call, WAIT for the result.
+3. You can issue multiple tool calls in sequence.
+4. Continue working until the task is complete. If you are finished, state that you are done.
+5. If you encounter an error, analyze it and try an alternative approach.
 
-Available: read_file(path), write_file(path, content), execute_command(cmd)"""
+Available tools: read_file(path), write_file(path, content), execute_command(cmd)"""
 
     messages = [{"role": "system", "content": system_prompt}]
     console.print("\n[bold green]🤖 Ready.[/bold green] Type 'exit' to quit. Commands: /setup, /status, /clear")
@@ -259,6 +273,7 @@ Available: read_file(path), write_file(path, content), execute_command(cmd)"""
                     for p in ["openrouter", "openai", "anthropic", "gemini"]:
                         is_curr = "*" if config.backend == p else ""
                         table.add_row(f"{is_curr}{p}", config.data[p]["model"], "Yes" if config.data[p]["key"] else "No")
+                    console.print(f"[info]Auto-Approve: {config.auto_approve}[/info]")
                     console.print(table)
                 elif cmd == "/clear":
                     messages = [{"role": "system", "content": system_prompt}]
@@ -278,7 +293,7 @@ Available: read_file(path), write_file(path, content), execute_command(cmd)"""
                 elif config.backend == "gemini":
                     gen = get_openai_style_completion("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", config.data["gemini"]["key"], config.data["gemini"]["model"], messages, "Gemini")
 
-                with Live(Spinner("dots", text="Thinking...", style="cyan"), refresh_per_second=10, console=console, transient=True) as live:
+                with Live(Spinner("dots", text="Jules thinking...", style="cyan"), refresh_per_second=10, console=console, transient=True) as live:
                     for text_chunk in gen:
                         response_text = text_chunk
                         if "<tool>" not in response_text: live.update(Markdown(response_text))
@@ -286,27 +301,45 @@ Available: read_file(path), write_file(path, content), execute_command(cmd)"""
 
                 if not response_text: break
 
+                messages.append({"role": "assistant", "content": response_text})
+
                 if "<tool>" in response_text:
                     try:
+                        # Print pre-tool text (like plans)
                         parts = response_text.split("<tool>")
-                        if parts[0].strip(): console.print(Markdown(parts[0].strip()))
-                        tool_str = parts[1].split("</tool>")[0].strip()
-                        tool_data = json.loads(tool_str)
-                        name, args = tool_data.get("name"), tool_data.get("args", {})
-                        if name == "read_file": result = read_file(**args)
-                        elif name == "write_file": result = write_file(**args)
-                        elif name == "execute_command": result = execute_command(**args)
-                        else: result = "Tool not found."
-                        messages.append({"role": "assistant", "content": response_text})
-                        messages.append({"role": "user", "content": f"Tool Result:\n{result}"})
+                        if parts[0].strip():
+                            console.print(Markdown(parts[0].strip()))
+
+                        tool_calls = response_text.split("<tool>")[1:]
+                        tool_results = []
+
+                        for call in tool_calls:
+                            tool_str = call.split("</tool>")[0].strip()
+                            tool_data = json.loads(tool_str)
+                            name, args = tool_data.get("name"), tool_data.get("args", {})
+
+                            # Approval step
+                            if not config.auto_approve:
+                                approve = questionary.confirm(f"Approve {name} with args {args}?").ask()
+                                if not approve:
+                                    tool_results.append(f"Tool {name} was rejected by user.")
+                                    continue
+
+                            if name == "read_file": result = read_file(**args)
+                            elif name == "write_file": result = write_file(**args)
+                            elif name == "execute_command": result = execute_command(**args)
+                            else: result = "Tool not found."
+                            tool_results.append(f"Result of {name}:\n{result}")
+
+                        messages.append({"role": "user", "content": "\n\n".join(tool_results)})
+                        # Continue the loop for the assistant to process results
                     except Exception as e:
-                        console.print(f"[danger]Error: {e}[/danger]")
-                        messages.append({"role": "assistant", "content": response_text})
-                        messages.append({"role": "user", "content": f"Error: {e}"})
+                        error_msg = f"Error processing tools: {e}"
+                        console.print(f"[danger]{error_msg}[/danger]")
+                        messages.append({"role": "user", "content": error_msg})
                 else:
                     console.print(Markdown(response_text))
-                    messages.append({"role": "assistant", "content": response_text})
-                    break
+                    break # Task might be done or waiting for user
         except KeyboardInterrupt: break
 
 def main():
