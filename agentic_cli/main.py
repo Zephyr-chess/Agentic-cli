@@ -3,32 +3,27 @@ import json
 import subprocess
 import sys
 import requests
-import questionary
+import asyncio
+from datetime import datetime
+from typing import List, Dict, Any, Optional
+
+from textual.app import App, ComposeResult
+from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
+from textual.widgets import Header, Footer, Static, Input, Button, Label, DataTable, Tree, ProgressBar, Markdown
+from textual.binding import Binding
+from textual.screen import Screen, ModalScreen
+from textual.worker import worker
+from textual import on, work
+
 from rich.console import Console
-from rich.live import Live
-from rich.spinner import Spinner
-from rich.text import Text
-from rich.markdown import Markdown
+from rich.markdown import Markdown as RichMarkdown
 from rich.panel import Panel
-from rich.theme import Theme
-from rich.table import Table
+from rich.text import Text
+from rich.syntax import Syntax
 
-# Custom theme for Claude-like feel
-custom_theme = Theme({
-    "info": "dim cyan",
-    "warning": "magenta",
-    "danger": "bold red",
-    "user": "bold green",
-    "assistant": "bold blue",
-    "tool": "bold yellow",
-    "plan": "bold yellow italic",
-})
-
-console = Console(theme=custom_theme)
-
+# Configuration
 CONFIG_PATH = os.path.expanduser("~/.agentic_cli_config.json")
 DEFAULT_MODEL = "qwen/qwen3-coder:free"
-NEMOTRON_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
 
 class AgentConfig:
     def __init__(self):
@@ -66,284 +61,260 @@ class AgentConfig:
             json.dump(self.data, f, indent=2)
 
     @property
-    def backend(self):
-        b = self.data.get("backend", "openrouter")
-        if b not in self.data or not isinstance(self.data[b], dict):
-            return "openrouter"
-        return b
-
-    @backend.setter
-    def backend(self, val): self.data["backend"] = val
+    def backend(self): return self.data.get("backend", "openrouter")
 
     @property
     def current_model(self):
         b = self.backend
-        return self.data[b].get("model", "")
-
-    @property
-    def auto_approve(self): return self.data.get("auto_approve", False)
-    @auto_approve.setter
-    def auto_approve(self, val): self.data["auto_approve"] = val
+        return self.data.get(b, {}).get("model", "")
 
 config = AgentConfig()
 
-# ==========================================
-# LOCAL ATOMIC TOOLS
-# ==========================================
+# Widgets
+class ToolCard(Static):
+    def __init__(self, name: str, args: dict, **kwargs):
+        super().__init__(**kwargs)
+        self.tool_name = name
+        self.args = args
 
-def read_file(path):
-    console.print(f"[tool]🔍 Analyzing file:[/tool] [underline]{path}[/underline]")
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        return content
-    except Exception as e:
-        return f"Error reading file: {e}"
+    def render(self) -> Panel:
+        return Panel(
+            Text.assemble(
+                ("Tool: ", "bold cyan"), (self.tool_name, "bold yellow"),
+                ("\nArgs: ", "bold cyan"), (json.dumps(self.args, indent=2), "white")
+            ),
+            title="Action",
+            border_style="blue"
+        )
 
-def write_file(path, content):
-    console.print(f"[tool]💾 Saving file:[/tool] [underline]{path}[/underline]")
-    try:
-        with open(path, 'w', encoding='utf-8') as f:
-            f.write(content)
-        return "File written successfully."
-    except Exception as e:
-        return f"Error writing file: {e}"
+class ChatMessage(Static):
+    def __init__(self, role: str, content: str, **kwargs):
+        super().__init__(**kwargs)
+        self.role = role
+        self.content = content
 
-def execute_command(cmd):
-    console.print(f"[tool]💻 Running command:[/tool] `[italic]{cmd}[/italic]`")
-    try:
-        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
-        return f"STDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}"
-    except Exception as e:
-        return f"Error: {e}"
+    def render(self) -> Panel:
+        color = "green" if self.role == "user" else "blue"
+        return Panel(
+            RichMarkdown(self.content),
+            title=f"[bold]{self.role.upper()}[/bold]",
+            border_style=color,
+            padding=(1, 2)
+        )
 
-# ==========================================
-# INFERENCE BACKENDS
-# ==========================================
+class ApprovalModal(ModalScreen[bool]):
+    def __init__(self, action: str, details: str):
+        super().__init__()
+        self.action = action
+        self.details = details
 
-def get_openai_style_completion(url, key, model, messages, provider_name):
-    if not key:
-        yield f"Error: {provider_name} API key not set. Use /setup."
-        return
-    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-    payload = {"model": model, "messages": messages, "stream": True}
-    try:
-        response = requests.post(url, headers=headers, json=payload, stream=True)
-        response.raise_for_status()
-        full_content = ""
-        for line in response.iter_lines():
-            if line:
-                line_str = line.decode('utf-8')
-                if line_str.startswith("data: "):
-                    data_str = line_str[6:]
-                    if data_str.strip() == "[DONE]": break
-                    try:
-                        data = json.loads(data_str)
-                        content = data['choices'][0]['delta'].get('content', '')
-                        full_content += content
-                        yield full_content
-                    except: continue
-    except Exception as e: yield f"Error during {provider_name} inference: {e}"
+    def compose(self) -> ComposeResult:
+        with Vertical(id="dialog"):
+            yield Label(f"Approval Required: {self.action}", id="title")
+            yield Static(self.details, id="details")
+            with Horizontal(id="buttons"):
+                yield Button("Approve", variant="success", id="approve")
+                yield Button("Reject", variant="error", id="reject")
 
-def get_anthropic_completion(messages):
-    key = config.data["anthropic"]["key"]
-    model = config.data["anthropic"]["model"]
-    if not key:
-        yield "Error: Anthropic API key not set. Use /setup."
-        return
-    headers = {
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json"
+    @on(Button.Pressed, "#approve")
+    def approve(self):
+        self.dismiss(True)
+
+    @on(Button.Pressed, "#reject")
+    def reject(self):
+        self.dismiss(False)
+
+class AgenticApp(App):
+    CSS = """
+    Screen {
+        background: $surface;
     }
-    system_msg = next((m['content'] for m in messages if m['role'] == 'system'), "")
-    anth_messages = [m for m in messages if m['role'] != 'system']
 
-    payload = {
-        "model": model,
-        "system": system_msg,
-        "messages": anth_messages,
-        "stream": True,
-        "max_tokens": 4096
+    #main_container {
+        height: 1fr;
     }
-    try:
-        response = requests.post("https://api.anthropic.com/v1/messages", headers=headers, json=payload, stream=True)
-        response.raise_for_status()
-        full_content = ""
-        for line in response.iter_lines():
-            if line:
-                line_str = line.decode('utf-8')
-                if line_str.startswith("data: "):
-                    try:
-                        data = json.loads(line_str[6:])
-                        if data['type'] == 'content_block_delta':
-                            full_content += data['delta']['text']
-                            yield full_content
-                    except: continue
-    except Exception as e: yield f"Error during Anthropic inference: {e}"
 
-# ==========================================
-# INTERACTIVE SETUP
-# ==========================================
+    #sidebar {
+        width: 30;
+        background: $panel;
+        border-right: tall $primary;
+        padding: 1;
+    }
 
-def interactive_setup():
-    choice = questionary.select(
-        "Agent Setup",
-        choices=["Switch Backend", "Set API Keys", "Change Models", "Toggle Auto-Approve", "Use Nemotron Free", "Back"]
-    ).ask()
+    #chat_area {
+        width: 1fr;
+        padding: 1;
+    }
 
-    if choice == "Switch Backend":
-        config.backend = questionary.select(
-            "Select provider:",
-            choices=["openrouter", "openai", "anthropic", "gemini"]
-        ).ask()
-        console.print(f"[green]Switched to {config.backend}[/green]")
+    #input_area {
+        height: auto;
+        border-top: tall $primary;
+        padding: 1;
+    }
 
-    elif choice == "Set API Keys":
-        provider = questionary.select(
-            "Set key for:",
-            choices=["openrouter", "openai", "anthropic", "gemini"]
-        ).ask()
-        key = questionary.password(f"Enter key for {provider}:").ask()
-        if key:
-            config.data[provider]["key"] = key
-            console.print(f"[green]Key saved.[/green]")
+    .log_entry {
+        padding: 0 1;
+        color: $text-muted;
+        font-size: 80%;
+    }
 
-    elif choice == "Change Models":
-        provider = questionary.select(
-            "Set model for:",
-            choices=["openrouter", "openai", "anthropic", "gemini"]
-        ).ask()
-        model = questionary.text(f"Enter model:", default=config.data[provider]["model"]).ask()
-        config.data[provider]["model"] = model
-        console.print(f"[green]Model updated.[/green]")
+    #dialog {
+        padding: 2;
+        background: $surface;
+        border: thick $primary;
+        width: 60;
+        height: auto;
+        align: center middle;
+    }
 
-    elif choice == "Toggle Auto-Approve":
-        config.auto_approve = not config.auto_approve
-        console.print(f"[green]Auto-Approve: {config.auto_approve}[/green]")
+    #buttons {
+        margin-top: 1;
+        align: center middle;
+    }
+    """
 
-    elif choice == "Use Nemotron Free":
-        config.backend = "openrouter"
-        config.data["openrouter"]["model"] = NEMOTRON_MODEL
-        console.print(f"[green]Set to {NEMOTRON_MODEL}[/green]")
+    BINDINGS = [
+        Binding("ctrl+q", "quit", "Quit"),
+        Binding("ctrl+l", "clear_chat", "Clear"),
+        Binding("ctrl+s", "settings", "Settings"),
+    ]
 
-    config.save()
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Horizontal(id="main_container"):
+            with Vertical(id="sidebar"):
+                yield Label("Files", classes="title")
+                yield Tree("./")
+                yield Label("\nTask Timeline", classes="title")
+                yield DataTable(id="timeline")
+            with ScrollableContainer(id="chat_area"):
+                yield Vertical(id="messages_list")
+        with Vertical(id="input_area"):
+            yield ProgressBar(id="progress", show_percentage=False, show_eta=False)
+            yield Input(placeholder="Type a message or /command...", id="main_input")
+        yield Footer()
 
-# ==========================================
-# CHAT LOOP
-# ==========================================
+    def on_mount(self) -> None:
+        self.query_one("#timeline", DataTable).add_columns("Time", "Status", "Action")
+        self.query_one("#progress").update(total=100, progress=0)
+        self.messages = [{"role": "system", "content": "You are Jules, an expert software engineer. Help the user locally. Use <tool>JSON</tool> for actions."}]
 
-def chat_loop():
-    console.print(Panel(Text("Agentic CLI: Autonomous Assistant", style="bold white", justify="center"), style="blue"))
+    def get_status_text(self) -> str:
+        return f"Model: {config.current_model} | Backend: {config.backend}"
 
-    system_prompt = """You are "Jules," an expert senior software engineer and autonomous agent.
-Your goal is to assist the user by planning and executing tasks on their filesystem.
+    @on(Input.Submitted, "#main_input")
+    async def handle_input(self, event: Input.Submitted) -> None:
+        text = event.value.strip()
+        if not text: return
+        event.input.value = ""
 
-STRICT WORKFLOW RULES:
-1. Always start by providing a short "PLAN" of action.
-2. Output tool calls using this EXACT format:
-<tool>
-{"name": "tool_name", "args": {"arg1": "value"}}
-</tool>
-3. You can issue multiple tool calls in sequence.
-4. Continue working until the task is complete. If you are finished, state that you are done.
-5. If you encounter an error, analyze it and try an alternative approach.
+        if text.startswith("/"):
+            await self.handle_command(text)
+            return
 
-Available tools: read_file(path), write_file(path, content), execute_command(cmd)"""
+        self.add_message("user", text)
+        self.messages.append({"role": "user", "content": text})
+        self.run_inference()
 
-    messages = [{"role": "system", "content": system_prompt}]
-    console.print("\n[bold green]🤖 Ready.[/bold green] Type 'exit' to quit. Commands: /setup, /status, /clear")
+    def add_message(self, role: str, content: str) -> None:
+        self.query_one("#messages_list").mount(ChatMessage(role, content))
+        self.call_after_refresh(self.scroll_to_bottom)
 
-    while True:
+    def scroll_to_bottom(self) -> None:
+        container = self.query_one("#chat_area")
+        container.scroll_end(animate=False)
+
+    @work(exclusive=True)
+    async def run_inference(self) -> None:
+        self.query_one("#progress").update(progress=10)
+        backend = config.backend
+        key = config.data.get(backend, {}).get("key", "")
+        model = config.data.get(backend, {}).get("model", "")
+
+        if not key:
+            self.add_message("system", f"Error: API Key for {backend} not set.")
+            return
+
         try:
-            current = f"({config.backend}:{config.current_model})"
-            user_input = console.input(f"\n[user]user {current}[/user] > ")
+            url = "https://openrouter.ai/api/v1/chat/completions" if backend == "openrouter" else \
+                  "https://api.openai.com/v1/chat/completions" if backend == "openai" else \
+                  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
-            if not user_input.strip(): continue
-            if user_input.lower() in ['exit', 'quit']: break
+            headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+            payload = {"model": model, "messages": self.messages, "stream": False}
 
-            if user_input.startswith("/"):
-                cmd = user_input.split()[0].lower()
-                if cmd == "/setup": interactive_setup()
-                elif cmd == "/status":
-                    table = Table(title="Configuration Status")
-                    table.add_column("Provider", style="cyan")
-                    table.add_column("Model", style="magenta")
-                    table.add_column("Key", style="green")
-                    for p in ["openrouter", "openai", "anthropic", "gemini"]:
-                        is_curr = "*" if config.backend == p else ""
-                        table.add_row(f"{is_curr}{p}", config.data[p]["model"], "Yes" if config.data[p]["key"] else "No")
-                    console.print(f"[info]Auto-Approve: {config.auto_approve}[/info]")
-                    console.print(table)
-                elif cmd == "/clear":
-                    messages = [{"role": "system", "content": system_prompt}]
-                    console.print("[info]Chat cleared.[/info]")
-                continue
+            response = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: requests.post(url, headers=headers, json=payload, timeout=60)
+            )
+            response.raise_for_status()
+            response_text = response.json()['choices'][0]['message']['content']
 
-            messages.append({"role": "user", "content": user_input})
+            self.query_one("#progress").update(progress=100)
+            self.add_message("assistant", response_text)
+            self.messages.append({"role": "assistant", "content": response_text})
 
-            while True:
-                response_text = ""
-                if config.backend == "openrouter":
-                    gen = get_openai_style_completion("https://openrouter.ai/api/v1/chat/completions", config.data["openrouter"]["key"], config.data["openrouter"]["model"], messages, "OpenRouter")
-                elif config.backend == "openai":
-                    gen = get_openai_style_completion("https://api.openai.com/v1/chat/completions", config.data["openai"]["key"], config.data["openai"]["model"], messages, "OpenAI")
-                elif config.backend == "anthropic":
-                    gen = get_anthropic_completion(messages)
-                elif config.backend == "gemini":
-                    gen = get_openai_style_completion("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", config.data["gemini"]["key"], config.data["gemini"]["model"], messages, "Gemini")
+            if "<tool>" in response_text:
+                await self.process_tools(response_text)
 
-                with Live(Spinner("dots", text="Jules thinking...", style="cyan"), refresh_per_second=10, console=console, transient=True) as live:
-                    for text_chunk in gen:
-                        response_text = text_chunk
-                        if "<tool>" not in response_text: live.update(Markdown(response_text))
-                        else: live.update(Text(response_text))
+        except Exception as e:
+            self.add_message("system", f"Inference Error: {e}")
+        finally:
+            self.query_one("#progress").update(progress=0)
 
-                if not response_text: break
+    async def process_tools(self, response_text: str) -> None:
+        try:
+            tool_calls = response_text.split("<tool>")[1:]
+            for call in tool_calls:
+                tool_str = call.split("</tool>")[0].strip()
+                tool_data = json.loads(tool_str)
+                name, args = tool_data.get("name"), tool_data.get("args", {})
 
-                messages.append({"role": "assistant", "content": response_text})
+                # Visual feedback
+                self.query_one("#messages_list").mount(ToolCard(name, args))
+                self.query_one("#timeline").add_row(datetime.now().strftime("%H:%M:%S"), "Wait", name)
 
-                if "<tool>" in response_text:
-                    try:
-                        # Print pre-tool text (like plans)
-                        parts = response_text.split("<tool>")
-                        if parts[0].strip():
-                            console.print(Markdown(parts[0].strip()))
+                approved = True
+                if not config.auto_approve:
+                    approved = await self.push_screen_wait(ApprovalModal(name, json.dumps(args, indent=2)))
 
-                        tool_calls = response_text.split("<tool>")[1:]
-                        tool_results = []
-
-                        for call in tool_calls:
-                            tool_str = call.split("</tool>")[0].strip()
-                            tool_data = json.loads(tool_str)
-                            name, args = tool_data.get("name"), tool_data.get("args", {})
-
-                            # Approval step
-                            if not config.auto_approve:
-                                approve = questionary.confirm(f"Approve {name} with args {args}?").ask()
-                                if not approve:
-                                    tool_results.append(f"Tool {name} was rejected by user.")
-                                    continue
-
-                            if name == "read_file": result = read_file(**args)
-                            elif name == "write_file": result = write_file(**args)
-                            elif name == "execute_command": result = execute_command(**args)
-                            else: result = "Tool not found."
-                            tool_results.append(f"Result of {name}:\n{result}")
-
-                        messages.append({"role": "user", "content": "\n\n".join(tool_results)})
-                        # Continue the loop for the assistant to process results
-                    except Exception as e:
-                        error_msg = f"Error processing tools: {e}"
-                        console.print(f"[danger]{error_msg}[/danger]")
-                        messages.append({"role": "user", "content": error_msg})
+                if approved:
+                    result = await self.execute_tool(name, args)
+                    self.query_one("#timeline").add_row(datetime.now().strftime("%H:%M:%S"), "Done", name)
+                    self.messages.append({"role": "user", "content": f"Tool Result for {name}: {result}"})
+                    self.run_inference()
                 else:
-                    console.print(Markdown(response_text))
-                    break # Task might be done or waiting for user
-        except KeyboardInterrupt: break
+                    self.messages.append({"role": "user", "content": f"User rejected tool: {name}"})
+
+        except Exception as e:
+            self.add_message("system", f"Tool Processing Error: {e}")
+
+    async def execute_tool(self, name: str, args: dict) -> str:
+        try:
+            if name == "read_file":
+                with open(args['path'], 'r') as f: return f.read()
+            elif name == "write_file":
+                with open(args['path'], 'w') as f: f.write(args['content']); return "Success"
+            elif name == "execute_command":
+                res = subprocess.run(args['cmd'], shell=True, capture_output=True, text=True)
+                return f"STDOUT: {res.stdout}\nSTDERR: {res.stderr}"
+            return "Unknown tool"
+        except Exception as e:
+            return f"Error: {e}"
+
+    async def push_screen_wait(self, screen: ModalScreen[bool]) -> bool:
+        return await self.push_screen(screen)
+
+    async def handle_command(self, cmd: str) -> None:
+        if cmd == "/clear":
+            self.query_one("#messages_list").remove()
+            self.query_one("#chat_area").mount(Vertical(id="messages_list"))
+            self.messages = [self.messages[0]]
+        elif cmd == "/status":
+            self.add_message("system", self.get_status_text())
 
 def main():
-    chat_loop()
+    app = AgenticApp()
+    app.run()
 
 if __name__ == "__main__":
     main()
