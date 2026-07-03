@@ -24,21 +24,29 @@ from rich.panel import Panel
 
 # Constants
 CONFIG_PATH = os.path.expanduser("~/.agentic_cli_config.json")
-DEFAULT_MODEL = "qwen/qwen-2.5-coder-32b-instruct:free"
+DEFAULT_MODEL = "qwen/qwen3-coder:free"
 
 class AgentConfig:
     def __init__(self):
         self.load()
 
     def load(self):
+        defaults = self.default_data()
         if os.path.exists(CONFIG_PATH):
             try:
                 with open(CONFIG_PATH, 'r') as f:
-                    self.data = json.load(f)
+                    loaded = json.load(f)
+                # Merge loaded data with defaults to avoid KeyErrors
+                self.data = defaults
+                for key, value in loaded.items():
+                    if isinstance(value, dict) and key in self.data:
+                        self.data[key].update(value)
+                    else:
+                        self.data[key] = value
             except:
-                self.data = self.default_data()
+                self.data = defaults
         else:
-            self.data = self.default_data()
+            self.data = defaults
 
     def default_data(self):
         return {
