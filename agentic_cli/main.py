@@ -236,7 +236,7 @@ Available: read_file(path), write_file(path, content), execute_command(cmd)"""
 
     while True:
         try:
-            current = f"({config.backend}:{config.get_current_model()})"
+            current = f"({config.backend}:{config.current_model})"
             user_input = console.input(f"\n[user]user {current}[/user] > ")
 
             if not user_input.strip(): continue
