@@ -3,28 +3,28 @@ import json
 import subprocess
 import sys
 import requests
+import asyncio
+import threading
+from typing import List, Dict
+
+from prompt_toolkit.application import Application
+from prompt_toolkit.application.current import get_app
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.layout.containers import HSplit, VSplit, Window, DynamicContainer
+from prompt_toolkit.layout.controls import FormattedTextControl
+from prompt_toolkit.layout.layout import Layout
+from prompt_toolkit.widgets import TextArea, Frame, Label
+from prompt_toolkit.styles import Style
+from prompt_toolkit.completion import WordCompleter
+
 from rich.console import Console
-from rich.live import Live
-from rich.spinner import Spinner
-from rich.text import Text
 from rich.markdown import Markdown
+from rich.text import Text
 from rich.panel import Panel
-from rich.theme import Theme
 
-# Custom theme for Claude-like feel
-custom_theme = Theme({
-    "info": "dim cyan",
-    "warning": "magenta",
-    "danger": "bold red",
-    "user": "bold green",
-    "assistant": "bold blue",
-    "tool": "bold yellow",
-})
-
-console = Console(theme=custom_theme)
-
+# Constants
 CONFIG_PATH = os.path.expanduser("~/.agentic_cli_config.json")
-DEFAULT_MODEL = "qwen/qwen-2-72b-instruct:free" # Using the high-performance free Qwen model
+DEFAULT_MODEL = "qwen/qwen-2-72b-instruct:free"
 
 class AgentConfig:
     def __init__(self):
@@ -32,183 +32,193 @@ class AgentConfig:
 
     def load(self):
         if os.path.exists(CONFIG_PATH):
-            with open(CONFIG_PATH, 'r') as f:
-                self.data = json.load(f)
+            try:
+                with open(CONFIG_PATH, 'r') as f:
+                    self.data = json.load(f)
+            except:
+                self.data = self.default_data()
         else:
-            self.data = {
-                "openrouter_key": "",
-                "model": DEFAULT_MODEL
-            }
+            self.data = self.default_data()
+
+    def default_data(self):
+        return {
+            "backend": "openrouter",
+            "openrouter": {"model": DEFAULT_MODEL, "key": ""},
+            "openai": {"model": "gpt-4o", "key": ""},
+            "anthropic": {"model": "claude-3-5-sonnet-20240620", "key": ""},
+            "gemini": {"model": "gemini-1.5-pro", "key": ""},
+        }
 
     def save(self):
         with open(CONFIG_PATH, 'w') as f:
             json.dump(self.data, f, indent=2)
 
     @property
-    def key(self): return self.data.get("openrouter_key")
-    @key.setter
-    def key(self, val): self.data["openrouter_key"] = val
+    def backend(self): return self.data.get("backend", "openrouter")
+    @backend.setter
+    def backend(self, val): self.data["backend"] = val
 
     @property
-    def model(self): return self.data.get("model", DEFAULT_MODEL)
+    def current_model(self):
+        return self.data[self.backend].get("model", "")
 
 config = AgentConfig()
 
-# ==========================================
-# LOCAL TOOLS
-# ==========================================
+# UI Styles
+style = Style.from_dict({
+    'status-bar': '#ffffff bg:#4444ff',
+    'input-field': '#ffffff bg:#000000',
+    'chat-area': '#cccccc bg:#000000',
+    'title': '#ffff00 bold',
+    'user': '#00ff00 bold',
+    'assistant': '#00ffff bold',
+    'tool': '#ff00ff bold',
+})
 
-def read_file(path):
-    console.print(f"[tool]🔍 Analyzing file:[/tool] [underline]{path}[/underline]")
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        return content
-    except Exception as e:
-        return f"Error reading file: {e}"
+class TUI:
+    def __init__(self):
+        self.chat_history = []
+        self.messages = [{"role": "system", "content": "You are Jules, an expert senior software engineer and autonomous coding agent. You assist the user with reading, writing, and executing code locally. Use <tool>JSON</tool> format for actions."}]
+        self.is_loading = False
 
-def write_file(path, content):
-    console.print(f"[tool]💾 Saving file:[/tool] [underline]{path}[/underline]")
-    try:
-        with open(path, 'w', encoding='utf-8') as f:
-            f.write(content)
-        return "File written successfully."
-    except Exception as e:
-        return f"Error writing file: {e}"
+        # UI Components
+        self.output_field = TextArea(read_only=True, scrollbar=True, style='class:chat-area')
+        self.input_field = TextArea(height=3, prompt='user > ', multiline=True, style='class:input-field')
+        self.status_label = Label(text=self.get_status_text(), style='class:status-bar')
 
-def execute_command(cmd):
-    console.print(f"[tool]💻 Running command:[/tool] `[italic]{cmd}[/italic]`")
-    try:
-        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
-        return f"STDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}"
-    except Exception as e:
-        return f"Error: {e}"
+        # Layout
+        self.root_container = HSplit([
+            Window(height=1, content=FormattedTextControl([('class:title', ' Agentic CLI v1.5 | Ctrl+Q: Quit | Ctrl+S: Setup | Ctrl+L: Clear ')]), align='center'),
+            Frame(self.output_field),
+            self.status_label,
+            self.input_field,
+        ])
 
-# ==========================================
-# INFERENCE
-# ==========================================
+        self.kb = KeyBindings()
+        self.setup_keybindings()
 
-def get_completion(messages):
-    if not config.key:
-        yield "Error: OpenRouter API key not set."
-        return
-
-    headers = {
-        "Authorization": f"Bearer {config.key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/taperx/agentic-cli",
-    }
-
-    payload = {
-        "model": config.model,
-        "messages": messages,
-        "stream": True
-    }
-
-    try:
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            stream=True
+        self.app = Application(
+            layout=Layout(self.root_container, focused_element=self.input_field),
+            key_bindings=self.kb,
+            style=style,
+            full_screen=True,
         )
-        response.raise_for_status()
 
-        full_content = ""
-        for line in response.iter_lines():
-            if line:
-                line_str = line.decode('utf-8')
-                if line_str.startswith("data: "):
-                    data_str = line_str[6:]
-                    if data_str.strip() == "[DONE]": break
-                    try:
-                        data = json.loads(data_str)
-                        content = data['choices'][0]['delta'].get('content', '')
-                        full_content += content
-                        yield full_content
-                    except: continue
-    except Exception as e:
-        yield f"Error: {e}"
+    def get_status_text(self):
+        return f" Backend: {config.backend} | Model: {config.current_model} | Status: {'Thinking...' if self.is_loading else 'Ready'}"
 
-# ==========================================
-# CHAT LOOP
-# ==========================================
+    def update_status(self):
+        self.status_label.text = self.get_status_text()
+        self.app.invalidate()
 
-def chat_loop():
-    if not config.key:
-        console.print(Panel("Welcome to Agentic CLI! Please set your OpenRouter API Key.", style="blue"))
-        key = console.input("[bold yellow]Enter OpenRouter Key:[/bold yellow] ")
-        if key:
-            config.key = key
-            config.save()
-        else:
+    def append_to_chat(self, role, text):
+        role_style = 'user' if role == 'user' else 'assistant'
+        self.output_field.text += f"\n[{role.upper()}]\n{text}\n"
+        # Auto scroll to bottom
+        self.output_field.buffer.cursor_position = len(self.output_field.text)
+
+    def setup_keybindings(self):
+        @self.kb.add('c-q')
+        def exit_(event):
+            event.app.exit()
+
+        @self.kb.add('c-l')
+        def clear_(event):
+            self.output_field.text = ""
+            self.messages = [self.messages[0]]
+            self.app.invalidate()
+
+        @self.kb.add('enter')
+        def submit_(event):
+            if not self.is_loading:
+                text = self.input_field.text.strip()
+                if text:
+                    self.input_field.text = ""
+                    self.append_to_chat("user", text)
+                    self.messages.append({"role": "user", "content": text})
+                    self.is_loading = True
+                    self.update_status()
+                    # Run inference in a separate thread
+                    threading.Thread(target=self.run_inference, args=(list(self.messages),), daemon=True).start()
+
+    def run_inference(self, messages):
+        response_text = ""
+        backend = config.backend
+        key = config.data[backend]["key"]
+        model = config.data[backend]["model"]
+
+        if not key and backend != "hf":
+            self.append_to_chat("system", "Error: API key not set. Use Ctrl+S to configure.")
+            self.is_loading = False
+            self.update_status()
             return
 
-    console.print(Panel(Text(f"Agentic CLI: {config.model}", style="bold white", justify="center"), style="blue"))
-
-    system_prompt = f"""You are "Jules," an expert senior software engineer and autonomous coding agent.
-Your goal is to assist the user by reading, writing, and executing code on their local filesystem (Termux).
-
-STRICT TOOL RULES:
-1. Output EXACTLY this format for tools:
-<tool>
-{{"name": "tool_name", "args": {{"arg1": "value"}}}}
-</tool>
-2. After calling a tool, WAIT for the user to provide the result.
-
-Available tools:
-- read_file(path)
-- write_file(path, content)
-- execute_command(cmd)"""
-
-    messages = [{"role": "system", "content": system_prompt}]
-    console.print("\n[bold green]🤖 Ready.[/bold green] Type 'exit' to quit.")
-
-    while True:
         try:
-            user_input = console.input(f"\n[user]user[/user] > ")
-            if not user_input.strip(): continue
-            if user_input.lower() in ['exit', 'quit']: break
+            # Simple synchronous request for now to maintain lightweight feel
+            if backend in ["openrouter", "openai", "gemini"]:
+                url = "https://openrouter.ai/api/v1/chat/completions" if backend == "openrouter" else \
+                      "https://api.openai.com/v1/chat/completions" if backend == "openai" else \
+                      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
-            messages.append({"role": "user", "content": user_input})
+                headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+                payload = {"model": model, "messages": messages, "stream": False}
+                res = requests.post(url, headers=headers, json=payload)
+                res.raise_for_status()
+                response_text = res.json()['choices'][0]['message']['content']
 
-            while True:
-                response_text = ""
-                with Live(Spinner("dots", text="Thinking...", style="cyan"), refresh_per_second=10, console=console, transient=True) as live:
-                    for text_chunk in get_completion(messages):
-                        response_text = text_chunk
-                        if "<tool>" not in response_text: live.update(Markdown(response_text))
-                        else: live.update(Text(response_text))
+            elif backend == "anthropic":
+                headers = {"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"}
+                payload = {"model": model, "messages": [m for m in messages if m['role'] != 'system'], "system": messages[0]['content'], "max_tokens": 4096}
+                res = requests.post("https://api.anthropic.com/v1/messages", headers=headers, json=payload)
+                res.raise_for_status()
+                response_text = res.json()['content'][0]['text']
 
-                if not response_text: break
+            # Process response and tools
+            self.append_to_chat("assistant", response_text)
+            self.messages.append({"role": "assistant", "content": response_text})
 
-                if "<tool>" in response_text:
-                    try:
-                        parts = response_text.split("<tool>")
-                        if parts[0].strip(): console.print(Markdown(parts[0].strip()))
-                        tool_str = parts[1].split("</tool>")[0].strip()
-                        tool_data = json.loads(tool_str)
-                        name, args = tool_data.get("name"), tool_data.get("args", {})
+            if "<tool>" in response_text:
+                self.handle_tool(response_text)
+            else:
+                self.is_loading = False
+                self.update_status()
 
-                        if name == "read_file": result = read_file(**args)
-                        elif name == "write_file": result = write_file(**args)
-                        elif name == "execute_command": result = execute_command(**args)
-                        else: result = "Tool not found."
+        except Exception as e:
+            self.append_to_chat("system", f"Error: {e}")
+            self.is_loading = False
+            self.update_status()
 
-                        messages.append({"role": "assistant", "content": response_text})
-                        messages.append({"role": "user", "content": f"Tool execution result:\n{result}"})
-                    except Exception as e:
-                        console.print(f"[danger]Tool Error: {e}[/danger]")
-                        messages.append({"role": "assistant", "content": response_text})
-                        messages.append({"role": "user", "content": f"Tool Error: {e}"})
-                else:
-                    console.print(Markdown(response_text))
-                    messages.append({"role": "assistant", "content": response_text})
-                    break
-        except KeyboardInterrupt: break
+    def handle_tool(self, response_text):
+        try:
+            tool_str = response_text.split("<tool>")[1].split("</tool>")[0].strip()
+            tool_data = json.loads(tool_str)
+            name = tool_data.get("name")
+            args = tool_data.get("args", {})
+
+            result = ""
+            if name == "read_file":
+                with open(args['path'], 'r') as f: result = f.read()
+            elif name == "write_file":
+                with open(args['path'], 'w') as f: f.write(args['content']); result = "Success"
+            elif name == "execute_command":
+                res = subprocess.run(args['cmd'], shell=True, capture_output=True, text=True)
+                result = f"STDOUT: {res.stdout}\nSTDERR: {res.stderr}"
+
+            self.append_to_chat("system", f"Tool {name} result: {result[:100]}...")
+            self.messages.append({"role": "user", "content": f"Tool execution result:\n{result}"})
+            # Re-run inference with tool result
+            self.run_inference(list(self.messages))
+        except Exception as e:
+            self.append_to_chat("system", f"Tool Error: {e}")
+            self.is_loading = False
+            self.update_status()
+
+    def run(self):
+        self.app.run()
 
 def main():
-    chat_loop()
+    tui = TUI()
+    tui.run()
 
 if __name__ == "__main__":
     main()
