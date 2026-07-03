@@ -24,7 +24,7 @@ from rich.panel import Panel
 
 # Constants
 CONFIG_PATH = os.path.expanduser("~/.agentic_cli_config.json")
-DEFAULT_MODEL = "qwen/qwen-2-72b-instruct:free"
+DEFAULT_MODEL = "qwen/qwen-2.5-coder-32b-instruct:free"
 
 class AgentConfig:
     def __init__(self):
