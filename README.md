@@ -1,12 +1,13 @@
 # Agentic CLI
 
-A lightweight AI coding assistant for Android Termux, powered by OpenRouter.
+A high-polish, lightweight AI coding assistant for Android Termux, powered by OpenRouter.
 
 ## Features
-- **Local Execution:** Runs shell commands and modifies files directly in Termux.
-- **Claude-style UI:** Beautiful terminal interface using `rich`.
-- **High Performance:** Defaults to Qwen 2 72B Instruct (Free) via OpenRouter.
-- **Fast & Minimal:** No local LLM overhead, zero-cost inference.
+- **Ultra-Lightweight**: Only depends on `rich` and `requests`. No heavy UI frameworks.
+- **Autonomous Workflow**: The agent can plan and execute multiple tasks in sequence.
+- **Interactive TUI-feel**: Uses `rich` for a modern, colorful terminal experience with Markdown support.
+- **Browser-Based UI**: A modern web interface (inspired by OpenCode/Claude Code) for a GUI chat experience.
+- **Optimized for Termux**: Fast installation and minimal CPU/RAM usage.
 
 ## Installation (Termux)
 
@@ -22,11 +23,17 @@ A lightweight AI coding assistant for Android Termux, powered by OpenRouter.
    ./install.sh
    ```
 
-3. Launch the assistant:
+3. Launch the assistant (Terminal):
    ```bash
    agentic-cli
+   ```
+
+4. Launch the assistant (Browser):
+   ```bash
+   agentic-cli --web
    ```
    *On the first run, you will be prompted for your OpenRouter API Key.*
 
 ## Configuration
-Settings are stored in `~/.agentic_cli_config.json`. You can manually change the `model` there to any model supported by OpenRouter.
+Settings are stored in `~/.agentic_cli_config.json`.
+Default model: `qwen/qwen3-coder:free` (480B MoE).
