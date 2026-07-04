@@ -20,5 +20,7 @@ fi
 echo "🐍 Installing Agentic CLI with uv..."
 uv tool install . --force
 
-echo "✅ Setup complete! You can now run the assistant by typing: agentic-cli"
+echo "✅ Setup complete!"
+echo "🚀 Terminal UI: type 'agentic-cli'"
+echo "🌐 Browser UI: type 'agentic-cli --web'"
 echo "💡 Alternatively, you can run it without permanent installation using: uvx --from . agentic-cli"
