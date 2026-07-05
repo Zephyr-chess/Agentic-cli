@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+import time
 from rich.console import Console
 from rich.live import Live
 from rich.spinner import Spinner
@@ -119,31 +120,39 @@ def chat_loop(auto_pilot=False):
                 engine.messages.append({"role": "assistant", "content": response_text})
 
                 if "<tool>" in response_text:
-                    parts = response_text.split("<tool>")
-                    if parts[0].strip(): console.print(Markdown(parts[0].strip()))
+                    try:
+                        parts = response_text.split("<tool>")
+                        if parts[0].strip(): console.print(Markdown(parts[0].strip()))
 
-                    tool_calls = response_text.split("<tool>")[1:]
-                    tool_results = []
+                        tool_calls = response_text.split("<tool>")[1:]
+                        tool_results = []
 
-                    for call in tool_calls:
-                        try:
-                            tool_str = call.split("</tool>")[0].strip()
-                            tool_data = json.loads(tool_str)
-                            name, args = tool_data.get("name"), tool_data.get("args", {})
+                        for call in tool_calls:
+                            try:
+                                if "</tool>" not in call: continue
+                                tool_str = call.split("</tool>")[0].strip()
+                                tool_data = json.loads(tool_str)
+                                name, args = tool_data.get("name"), tool_data.get("args", {})
 
-                            # Approval
-                            if not auto_pilot and not config.auto_approve:
-                                confirm = console.input(f"\n[warning]Approve {name}? [y/N][/warning] ")
-                                if confirm.lower() != 'y':
-                                    tool_results.append(f"Tool {name} rejected.")
-                                    continue
+                                # Approval
+                                if not auto_pilot and not config.auto_approve:
+                                    confirm = console.input(f"\n[warning]Approve {name}({args})? [y/N][/warning] ")
+                                    if confirm.lower() != 'y':
+                                        tool_results.append(f"Tool {name} rejected.")
+                                        continue
 
-                            res = engine.execute_tool(name, args)
-                            tool_results.append(f"Result of {name}: {res}")
-                        except Exception as e:
-                            tool_results.append(f"Tool Error: {e}")
+                                res = engine.execute_tool(name, args)
+                                tool_results.append(f"Result of {name}: {res}")
+                            except Exception as e:
+                                tool_results.append(f"Tool Error parsing/executing: {e}")
 
-                    engine.messages.append({"role": "user", "content": "\n\n".join(tool_results)})
+                        if tool_results:
+                            engine.messages.append({"role": "user", "content": "\n\n".join(tool_results)})
+                        else:
+                            break # No tools were actually called or all were rejected without producing output
+                    except Exception as e:
+                        console.print(f"[danger]Outer tool processing error: {e}[/danger]")
+                        break
                 else:
                     console.print(Markdown(response_text))
                     break

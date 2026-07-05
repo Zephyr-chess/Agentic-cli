@@ -88,16 +88,23 @@ Available tools: read_file(path), write_file(path, content), execute_command(cmd
     def execute_tool(self, name: str, args: dict) -> str:
         try:
             if name == "read_file":
-                with open(args['path'], 'r', encoding='utf-8') as f: return f.read()
+                path = args.get('path')
+                if not path: return "Error: Missing 'path' argument"
+                with open(path, 'r', encoding='utf-8') as f: return f.read()
             elif name == "write_file":
-                with open(args['path'], 'w', encoding='utf-8') as f: f.write(args['content'])
-                return "Success"
+                path = args.get('path')
+                content = args.get('content', '')
+                if not path: return "Error: Missing 'path' argument"
+                with open(path, 'w', encoding='utf-8') as f: f.write(content)
+                return f"Successfully written to {path}"
             elif name == "execute_command":
-                res = subprocess.run(args['cmd'], shell=True, capture_output=True, text=True, timeout=60)
-                return f"STDOUT: {res.stdout}\nSTDERR: {res.stderr}"
-            return "Unknown tool"
+                cmd = args.get('cmd')
+                if not cmd: return "Error: Missing 'cmd' argument"
+                res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
+                return f"STDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}"
+            return f"Error: Unknown tool '{name}'"
         except Exception as e:
-            return f"Error: {e}"
+            return f"Error executing {name}: {str(e)}"
 
     def get_completion(self, stream: bool = True) -> Generator[str, None, None]:
         backend = config.backend

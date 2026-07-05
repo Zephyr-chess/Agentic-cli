@@ -3,137 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agentic CLI - Auto Pilot</title>
+    <title>Agentic CLI | Auto Pilot</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
                     colors: {
-                        dark: {
-                            50: '#f8fafc',
-                            100: '#f1f5f9',
-                            200: '#e2e8f0',
-                            300: '#cbd5e1',
-                            400: '#94a3b8',
-                            500: '#64748b',
-                            600: '#475569',
-                            700: '#334155',
-                            800: '#1e293b',
-                            900: '#0f172a',
-                            950: '#020617',
-                        }
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                        },
+                        panel: '#0f172a',
+                        sidebar: '#020617',
                     }
                 }
             }
         }
     </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .chat-container { height: calc(100vh - 140px); }
-        .thought-bubble { position: relative; }
-        .thought-bubble::before { content: ''; position: absolute; left: -10px; top: 10px; border-width: 10px 10px 10px 0; border-color: transparent #1e293b transparent transparent; }
+        .thought-bubble { transition: all 0.3s ease; }
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse-soft { animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     </style>
 </head>
-<body class="bg-dark-950 text-dark-200 overflow-hidden">
-    <div class="flex h-screen">
+<body class="bg-slate-950 text-slate-200 font-sans antialiased overflow-hidden">
+    <div class="flex h-screen w-full">
         <!-- Sidebar -->
-        <aside class="w-72 bg-dark-900 border-r border-dark-800 flex flex-col hidden lg:flex">
-            <div class="p-6 border-b border-dark-800">
-                <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-robot text-white"></i>
+        <aside class="w-80 bg-sidebar border-r border-slate-800 flex flex-col hidden md:flex">
+            <div class="p-6">
+                <div class="flex items-center space-x-3 mb-8">
+                    <div class="p-2 bg-brand-600 rounded-xl shadow-lg shadow-brand-900/20">
+                        <i class="fas fa-robot text-white text-lg"></i>
                     </div>
-                    <span class="font-bold text-lg tracking-tight">Agentic CLI</span>
+                    <span class="font-bold text-xl tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Agentic v3</span>
+                </div>
+
+                <div class="space-y-8">
+                    <section>
+                        <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">Workspace</h3>
+                        <div id="file-list" class="space-y-1 text-sm text-slate-400">
+                            <!-- Placeholder -->
+                            <div class="group flex items-center p-2 hover:bg-slate-900 rounded-lg cursor-pointer transition-colors">
+                                <i class="far fa-folder mr-3 text-brand-500"></i>
+                                <span class="group-hover:text-white transition-colors">agentic_cli/</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section>
+                        <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">Activity Log</h3>
+                        <div id="timeline" class="space-y-3">
+                            <!-- Timeline entries -->
+                        </div>
+                    </section>
                 </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto p-4 space-y-6">
-                <div>
-                    <h3 class="text-xs font-semibold text-dark-500 uppercase tracking-wider mb-3">Project Files</h3>
-                    <div id="file-list" class="space-y-1 text-sm text-dark-400">
-                        <div class="flex items-center p-2 hover:bg-dark-800 rounded cursor-pointer transition">
-                            <i class="far fa-folder mr-2 text-blue-400"></i> agentic_cli/
-                        </div>
-                        <div class="flex items-center p-2 hover:bg-dark-800 rounded cursor-pointer transition pl-6">
-                            <i class="fab fa-python mr-2 text-yellow-500"></i> main.py
-                        </div>
+            <div class="mt-auto p-6 border-t border-slate-900">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                        <span class="text-xs font-medium text-slate-400">System Ready</span>
                     </div>
-                </div>
-
-                <div>
-                    <h3 class="text-xs font-semibold text-dark-500 uppercase tracking-wider mb-3">Task Timeline</h3>
-                    <div id="timeline" class="space-y-4">
-                        <!-- Timeline entries -->
-                    </div>
-                </div>
-            </div>
-
-            <div class="p-4 border-t border-dark-800">
-                <div class="flex items-center justify-between text-xs text-dark-500">
-                    <span>v3.0.0 Alpha</span>
-                    <span class="flex items-center"><span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span> Connected</span>
+                    <span class="text-[10px] font-mono text-slate-600">v3.0.0-PRO</span>
                 </div>
             </div>
         </aside>
 
-        <!-- Main Workspace -->
-        <main class="flex-1 flex flex-col bg-dark-950 relative">
-            <!-- Top Navbar -->
-            <header class="h-16 border-b border-dark-800 flex items-center justify-between px-8 bg-dark-950/80 backdrop-blur-md z-10">
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col bg-slate-950 relative">
+            <!-- Header -->
+            <header class="h-16 border-b border-slate-900 flex items-center justify-between px-8 bg-slate-950/50 backdrop-blur-xl sticky top-0 z-20">
                 <div class="flex items-center space-x-6">
-                    <div class="flex items-center space-x-2 bg-dark-900 rounded-full px-4 py-1.5 border border-dark-800">
-                        <i class="fas fa-microchip text-blue-500 text-xs"></i>
-                        <span class="text-xs font-medium text-dark-300" id="model-name-display">Loading...</span>
-                    </div>
-                    <div id="status-badge" class="flex items-center space-x-2">
-                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                        <span class="text-[10px] font-bold text-dark-500 uppercase tracking-widest">Live</span>
+                    <div class="flex items-center space-x-3 bg-slate-900/50 border border-slate-800 rounded-full pl-2 pr-4 py-1">
+                        <div class="w-6 h-6 rounded-full bg-brand-500/10 flex items-center justify-center">
+                            <i class="fas fa-bolt text-brand-500 text-[10px]"></i>
+                        </div>
+                        <span class="text-xs font-semibold tracking-wide text-slate-300 uppercase" id="model-display">...</span>
                     </div>
                 </div>
 
                 <div class="flex items-center space-x-4">
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="auto-pilot-toggle" class="sr-only peer">
-                        <div class="w-11 h-6 bg-dark-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        <span class="ml-3 text-xs font-semibold text-dark-400 uppercase tracking-tighter">Auto-Pilot</span>
-                    </label>
-                    <button id="settings-btn" class="w-9 h-9 flex items-center justify-center hover:bg-dark-800 rounded-full transition">
-                        <i class="fas fa-cog text-dark-400"></i>
+                    <div class="flex items-center bg-slate-900/50 border border-slate-800 rounded-xl px-3 py-1.5 space-x-3">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase">Auto-Pilot</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="auto-pilot-toggle" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-600"></div>
+                        </label>
+                    </div>
+                    <button id="settings-btn" class="w-10 h-10 flex items-center justify-center bg-slate-900/50 border border-slate-800 rounded-xl hover:bg-slate-800 hover:border-slate-700 transition-all">
+                        <i class="fas fa-sliders text-slate-400"></i>
                     </button>
                 </div>
             </header>
 
-            <!-- Chat Area -->
-            <div id="chat-window" class="flex-1 overflow-y-auto p-8 space-y-8 chat-container scrollbar-hide pb-32">
-                <div class="max-w-4xl mx-auto space-y-8">
-                    <!-- Welcome -->
-                    <div class="flex space-x-4 animate-in fade-in duration-500">
-                        <div class="w-10 h-10 rounded-xl bg-blue-600/20 flex items-center justify-center border border-blue-600/30 flex-shrink-0">
-                            <i class="fas fa-robot text-blue-400"></i>
+            <!-- Chat Window -->
+            <div id="chat-window" class="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide pb-32">
+                <div class="max-w-4xl mx-auto space-y-10" id="chat-content">
+                    <!-- Initial Jules Greeting -->
+                    <div class="flex space-x-6">
+                        <div class="w-10 h-10 rounded-2xl bg-brand-600/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-robot text-brand-500"></i>
                         </div>
-                        <div class="bg-dark-900 border border-dark-800 p-5 rounded-2xl rounded-tl-none shadow-xl max-w-2xl">
-                            <p class="text-sm leading-relaxed">
-                                Welcome to **Agentic CLI v3**. I'm Jules, your autonomous coding partner.
-                                Give me a task, and I'll handle the planning and execution.
-                            </p>
+                        <div class="flex-1 space-y-2">
+                            <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">Jules Assistant</div>
+                            <div class="text-sm leading-relaxed text-slate-300 bg-slate-900/50 border border-slate-800/50 p-6 rounded-3xl rounded-tl-none shadow-2xl">
+                                System initialized. I am ready to assist with your engineering tasks. What are we building today?
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Input Bar -->
-            <div class="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-dark-950 via-dark-950 to-transparent">
+            <div class="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent">
                 <div class="max-w-4xl mx-auto relative group">
                     <textarea id="user-input"
-                        class="w-full bg-dark-900 border border-dark-800 group-hover:border-dark-700 focus:border-blue-500 rounded-2xl px-6 py-4 pr-16 text-sm focus:outline-none transition-all shadow-2xl resize-none placeholder-dark-600"
-                        placeholder="What should we build today?" rows="1"></textarea>
-                    <button id="send-btn" class="absolute right-4 bottom-3.5 w-10 h-10 bg-blue-600 hover:bg-blue-500 text-white rounded-xl flex items-center justify-center transition-all transform active:scale-95 shadow-lg shadow-blue-950">
+                        class="w-full bg-slate-900 border border-slate-800 group-hover:border-slate-700 focus:border-brand-500/50 rounded-2xl px-6 py-5 pr-20 text-sm focus:outline-none transition-all shadow-2xl resize-none placeholder-slate-600 ring-0 ring-brand-500/10 focus:ring-4"
+                        placeholder="Describe your task..." rows="1"></textarea>
+                    <button id="send-btn" class="absolute right-4 bottom-4 w-12 h-12 bg-brand-600 hover:bg-brand-500 text-white rounded-xl flex items-center justify-center transition-all transform active:scale-95 shadow-xl shadow-brand-900/30">
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </div>
@@ -141,233 +143,239 @@
         </main>
     </div>
 
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="fixed inset-0 bg-dark-950/90 backdrop-blur-md hidden items-center justify-center z-[60]">
-        <div class="bg-dark-900 p-8 rounded-3xl border border-dark-800 max-w-xl w-full shadow-2xl">
-            <div class="flex justify-between items-center mb-8">
-                <h3 class="text-xl font-bold text-white">System Settings</h3>
-                <button id="close-settings" class="text-dark-500 hover:text-white"><i class="fas fa-times"></i></button>
+    <!-- Modals -->
+    <div id="settings-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-xl hidden items-center justify-center z-[100]">
+        <div class="bg-slate-900 p-10 rounded-[2.5rem] border border-slate-800 max-w-xl w-full shadow-2xl transform scale-105">
+            <div class="flex justify-between items-center mb-10">
+                <h3 class="text-2xl font-bold text-white tracking-tight">Configuration</h3>
+                <button id="close-settings" class="w-10 h-10 flex items-center justify-center hover:bg-slate-800 rounded-full transition-colors"><i class="fas fa-times"></i></button>
             </div>
-
-            <div class="space-y-6">
-                <div>
-                    <label class="block text-xs font-bold text-dark-500 uppercase mb-2">Inference Provider</label>
-                    <select id="backend-select" class="w-full bg-dark-950 border border-dark-800 rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none">
-                        <option value="openrouter">OpenRouter</option>
-                        <option value="openai">OpenAI</option>
-                        <option value="anthropic">Anthropic</option>
-                        <option value="gemini">Gemini</option>
+            <div class="space-y-8">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Provider</label>
+                    <select id="backend-select" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-sm focus:border-brand-500 outline-none appearance-none cursor-pointer">
+                        <option value="openrouter">OpenRouter (Multi-Provider)</option>
+                        <option value="openai">OpenAI (Direct)</option>
+                        <option value="anthropic">Anthropic (Direct)</option>
+                        <option value="gemini">Google Gemini (Direct)</option>
                     </select>
                 </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-dark-500 uppercase mb-2">Model ID</label>
-                    <input type="text" id="model-input" class="w-full bg-dark-950 border border-dark-800 rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none" placeholder="e.g. qwen/qwen3-coder:free">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Model Identifier</label>
+                    <input type="text" id="model-input" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-sm focus:border-brand-500 outline-none transition-all" placeholder="e.g. qwen/qwen3-coder:free">
                 </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-dark-500 uppercase mb-2">API Key</label>
-                    <input type="password" id="key-input" class="w-full bg-dark-950 border border-dark-800 rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none" placeholder="sk-...">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Secret API Key</label>
+                    <input type="password" id="key-input" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-sm focus:border-brand-500 outline-none" placeholder="sk-...">
                 </div>
-
-                <div class="pt-4">
-                    <button id="save-settings" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-900">
-                        Save Configuration
-                    </button>
-                </div>
+                <button id="save-settings" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-bold py-5 rounded-2xl transition-all shadow-xl shadow-brand-900/20 mt-4">
+                    Save and Apply
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Modal for Approval -->
-    <div id="modal" class="fixed inset-0 bg-dark-950/80 backdrop-blur-sm hidden items-center justify-center z-50">
-        <div class="bg-dark-900 p-8 rounded-3xl border border-dark-800 max-w-lg w-full shadow-2xl transform scale-110">
-            <div class="flex items-center space-x-4 mb-6">
-                <div class="w-12 h-12 bg-yellow-500/20 rounded-2xl flex items-center justify-center border border-yellow-500/30">
-                    <i class="fas fa-shield-halved text-yellow-500 text-xl"></i>
+    <!-- Tool Confirmation Modal -->
+    <div id="tool-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-[90]">
+        <div class="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 max-w-lg w-full shadow-2xl ring-1 ring-white/5">
+            <div class="flex items-center space-x-5 mb-8">
+                <div class="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center border border-amber-500/20">
+                    <i class="fas fa-shield-halved text-amber-500 text-2xl"></i>
                 </div>
                 <div>
-                    <h3 class="text-xl font-bold text-white">Action Required</h3>
-                    <p class="text-xs text-dark-500 uppercase tracking-widest font-semibold">User Confirmation</p>
+                    <h3 class="text-xl font-bold text-white tracking-tight">Security Check</h3>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Requires Manual Approval</p>
                 </div>
             </div>
-
-            <div class="bg-dark-950 rounded-2xl p-4 border border-dark-800 mb-8">
-                <p id="modal-title" class="text-blue-400 font-bold text-sm mb-2 uppercase"></p>
-                <pre id="modal-args" class="text-xs mono text-dark-300 overflow-x-auto whitespace-pre-wrap"></pre>
+            <div class="bg-slate-950 rounded-2xl p-6 border border-slate-800 mb-10 overflow-hidden">
+                <div id="modal-tool-name" class="text-brand-500 font-bold font-mono text-xs mb-4"></div>
+                <pre id="modal-tool-args" class="text-xs font-mono text-slate-400 overflow-x-auto whitespace-pre-wrap max-h-40 scrollbar-hide"></pre>
             </div>
-
-            <div class="flex space-x-3">
-                <button id="reject-btn" class="flex-1 px-6 py-3 text-sm font-semibold text-dark-400 hover:bg-dark-800 rounded-xl transition">Reject</button>
-                <button id="approve-btn" class="flex-1 px-6 py-3 text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-900 transition">Execute</button>
+            <div class="flex space-x-4">
+                <button id="tool-reject" class="flex-1 py-4 text-sm font-bold text-slate-400 hover:bg-slate-800 rounded-2xl transition-colors">Decline</button>
+                <button id="tool-approve" class="flex-1 py-4 text-sm font-bold bg-brand-600 hover:bg-brand-500 text-white rounded-2xl shadow-xl shadow-brand-900/20 transition-all">Execute Action</button>
             </div>
         </div>
     </div>
 
     <script>
-        const chatWindow = document.getElementById('chat-window').firstElementChild;
+        const chatContent = document.getElementById('chat-content');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
-        const modal = document.getElementById('modal');
         const autoPilot = document.getElementById('auto-pilot-toggle');
         const timeline = document.getElementById('timeline');
+        const modelDisplay = document.getElementById('model-display');
 
-        let currentThoughtDiv = null;
+        let lastThoughtElement = null;
 
-        function updateTimeline(name, status) {
+        function addTimeline(name, status) {
             const entry = document.createElement('div');
-            entry.className = "flex items-start space-x-3";
-            const icon = status === 'done' ? 'fa-check-circle text-green-500' : 'fa-spinner fa-spin text-blue-500';
+            entry.className = "flex items-start space-x-3 group animate-in slide-in-from-left-2 duration-300";
+            const icon = status === 'done' ? 'fa-circle-check text-emerald-500' : 'fa-circle-notch fa-spin text-brand-500';
             entry.innerHTML = `
-                <div class="mt-0.5"><i class="fas ${icon} text-xs"></i></div>
+                <div class="mt-1"><i class="fas ${icon} text-[10px]"></i></div>
                 <div class="flex-1">
-                    <div class="text-xs font-medium text-dark-200">${name}</div>
-                    <div class="text-[10px] text-dark-500">${new Date().toLocaleTimeString()}</div>
+                    <div class="text-xs font-semibold text-slate-300 group-hover:text-brand-500 transition-colors">${name}</div>
+                    <div class="text-[9px] font-medium text-slate-600 uppercase tracking-tighter">${new Date().toLocaleTimeString()}</div>
                 </div>
             `;
             timeline.prepend(entry);
         }
 
-        function appendMessage(role, content, isTool = false) {
+        function createMessage(role) {
             const wrapper = document.createElement('div');
-            wrapper.className = "flex space-x-4 animate-in slide-in-from-bottom-2 duration-300";
+            wrapper.className = "flex space-x-6 animate-in slide-in-from-bottom-4 duration-500";
 
             if (role === 'user') {
                 wrapper.innerHTML = `
                     <div class="flex-1"></div>
-                    <div class="bg-blue-600 text-white px-6 py-3 rounded-2xl rounded-tr-none shadow-xl max-w-xl">
-                        <p class="text-sm leading-relaxed">${content}</p>
+                    <div class="flex-1 space-y-2 text-right">
+                        <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">Operator</div>
+                        <div class="inline-block bg-brand-600 text-white px-8 py-4 rounded-3xl rounded-tr-none shadow-2xl shadow-brand-900/20 text-sm leading-relaxed">
+                            <p>${userInput.value}</p>
+                        </div>
+                    </div>
+                    <div class="w-10 h-10 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-user text-slate-500 text-xs"></i>
                     </div>
                 `;
             } else {
-                const iconClass = isTool ? 'fa-terminal text-yellow-500' : 'fa-robot text-blue-400';
-                const bgClass = isTool ? 'bg-yellow-500/10 border-yellow-500/20' : 'bg-dark-900 border-dark-800';
                 wrapper.innerHTML = `
-                    <div class="w-10 h-10 rounded-xl bg-dark-900 flex items-center justify-center border border-dark-800 flex-shrink-0">
-                        <i class="fas ${iconClass}"></i>
+                    <div class="w-10 h-10 rounded-2xl bg-brand-600/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0 shadow-lg shadow-brand-900/10">
+                        <i class="fas fa-robot text-brand-500"></i>
                     </div>
-                    <div class="${bgClass} border p-5 rounded-2xl rounded-tl-none shadow-xl flex-1 max-w-3xl overflow-hidden">
-                        ${isTool ? `<pre class="text-xs mono text-dark-300 overflow-x-auto">${content}</pre>` : `<p class="text-sm leading-relaxed whitespace-pre-wrap">${content}</p>`}
+                    <div class="flex-1 space-y-2">
+                        <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">Jules Assistant</div>
+                        <div class="message-body text-sm leading-relaxed text-slate-300 bg-slate-900/50 border border-slate-800/50 p-6 rounded-3xl rounded-tl-none shadow-2xl backdrop-blur-sm">
+                            ...
+                        </div>
                     </div>
                 `;
             }
-            chatWindow.appendChild(wrapper);
+            chatContent.appendChild(wrapper);
             wrapper.scrollIntoView({ behavior: 'smooth' });
-            return wrapper.querySelector('p, pre');
+            return wrapper.querySelector('.message-body p, .message-body');
         }
 
-        async function sendMessage() {
+        function addToolCard(name, content, status = 'done') {
+            const wrapper = document.createElement('div');
+            wrapper.className = "flex space-x-6 animate-in fade-in duration-700 ml-16";
+            const border = status === 'error' ? 'border-red-500/20' : 'border-slate-800';
+            wrapper.innerHTML = `
+                <div class="flex-1 bg-slate-900/30 border ${border} rounded-2xl p-5 shadow-sm overflow-hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-terminal text-brand-500 text-[10px]"></i>
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">${name}</span>
+                        </div>
+                        <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                    </div>
+                    <pre class="text-[11px] font-mono text-slate-400 overflow-x-auto whitespace-pre-wrap">${content}</pre>
+                </div>
+            `;
+            chatContent.appendChild(wrapper);
+            wrapper.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function handleSend() {
             const text = userInput.value.trim();
             if (!text) return;
+
+            createMessage('user');
             userInput.value = '';
-            appendMessage('user', text);
+            userInput.style.height = 'auto';
 
-            const response = await fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text, auto_pilot: autoPilot.checked })
-            });
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ message: text, auto_pilot: autoPilot.checked })
+                });
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            currentThoughtDiv = null;
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                lastThoughtElement = createMessage('assistant');
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
 
-                const lines = decoder.decode(value).split('\n');
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = JSON.parse(line.substring(6));
-                        handleEvent(data);
+                    const chunks = decoder.decode(value).split('\n\n');
+                    for (const chunk of chunks) {
+                        if (chunk.startsWith('data: ')) {
+                            const data = JSON.parse(chunk.substring(6));
+                            handleAgentEvent(data);
+                        }
                     }
                 }
+            } catch (err) {
+                console.error(err);
+                if (lastThoughtElement) lastThoughtElement.innerText = "Error: " + err.message;
             }
         }
 
-        let lastToolRequest = null;
+        let pendingTool = null;
 
-        function handleEvent(data) {
+        function handleAgentEvent(data) {
             if (data.type === 'thought') {
-                if (!currentThoughtDiv) {
-                    currentThoughtDiv = appendMessage('assistant', '');
-                }
-                currentThoughtDiv.innerText = data.content;
-                currentThoughtDiv.scrollIntoView();
+                lastThoughtElement.innerText = data.content;
             } else if (data.type === 'tool_start') {
-                updateTimeline(data.name, 'running');
+                addTimeline(data.name, 'running');
             } else if (data.type === 'tool_end') {
-                appendMessage('assistant', `Tool Result [${data.name}]:\n${data.result}`, true);
-                currentThoughtDiv = null;
+                addToolCard(data.name, data.result);
+                lastThoughtElement = createMessage('assistant'); // Prepare for next response
             } else if (data.type === 'approval_required') {
-                lastToolRequest = data;
-                document.getElementById('modal-title').innerText = data.name;
-                document.getElementById('modal-args').innerText = JSON.stringify(data.args, null, 2);
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            } else if (data.type === 'done') {
-                currentThoughtDiv = null;
+                pendingTool = data;
+                document.getElementById('modal-tool-name').innerText = data.name;
+                document.getElementById('modal-tool-args').innerText = JSON.stringify(data.args, null, 2);
+                document.getElementById('tool-modal').classList.replace('hidden', 'flex');
             }
         }
 
-        async function approve(action) {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            const res = await fetch('/approve', {
+        async function processApproval(approved) {
+            document.getElementById('tool-modal').classList.replace('flex', 'hidden');
+            const response = await fetch('/approve', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, ...lastToolRequest })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    action: approved ? 'approve' : 'reject',
+                    name: pendingTool.name,
+                    args: pendingTool.args
+                })
             });
-            const result = await res.json();
-            if (action === 'approve') {
-                appendMessage('assistant', `Tool Result [${lastToolRequest.name}]:\n${result.result}`, true);
-                // After approval, continue session - we simply send a prompt back to agent
-                // In a perfect system, the server would handle this loop.
-            }
+            const result = await response.json();
+            addToolCard(pendingTool.name, approved ? result.result : "REJECTED BY OPERATOR", approved ? 'done' : 'error');
+            // Logic to continue turn could go here
         }
 
-        document.getElementById('approve-btn').onclick = () => approve('approve');
-        document.getElementById('reject-btn').onclick = () => approve('reject');
+        // Event Listeners
+        sendBtn.onclick = handleSend;
+        userInput.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } };
+        userInput.oninput = () => { userInput.style.height = 'auto'; userInput.style.height = userInput.scrollHeight + 'px'; };
 
-        sendBtn.onclick = sendMessage;
-        userInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-            // Auto resize
-            userInput.style.height = 'auto';
-            userInput.style.height = Math.min(userInput.scrollHeight, 200) + 'px';
-        });
+        document.getElementById('tool-approve').onclick = () => processApproval(true);
+        document.getElementById('tool-reject').onclick = () => processApproval(false);
 
-        // Settings logic
-        const settingsBtn = document.getElementById('settings-btn');
+        // Settings
         const settingsModal = document.getElementById('settings-modal');
-        const closeSettings = document.getElementById('close-settings');
-        const saveSettings = document.getElementById('save-settings');
-
-        settingsBtn.onclick = () => settingsModal.classList.replace('hidden', 'flex');
-        closeSettings.onclick = () => settingsModal.classList.replace('flex', 'hidden');
-
-        saveSettings.onclick = async () => {
-            const payload = {
-                backend: document.getElementById('backend-select').value,
-                model: document.getElementById('model-input').value,
-                key: document.getElementById('key-input').value
-            };
+        document.getElementById('settings-btn').onclick = () => settingsModal.classList.replace('hidden', 'flex');
+        document.getElementById('close-settings').onclick = () => settingsModal.classList.replace('flex', 'hidden');
+        document.getElementById('save-settings').onclick = async () => {
             await fetch('/update_config', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
+                body: JSON.stringify({
+                    backend: document.getElementById('backend-select').value,
+                    model: document.getElementById('model-input').value,
+                    key: document.getElementById('key-input').value
+                })
             });
-            settingsModal.classList.replace('flex', 'hidden');
             location.reload();
         };
 
-        // Initialize config
+        // Initialize
         fetch('/config').then(r => r.json()).then(data => {
-            document.getElementById('model-name-display').innerText = data.model;
+            modelDisplay.innerText = data.model;
             document.getElementById('backend-select').value = data.backend;
             document.getElementById('model-input').value = data.model;
             autoPilot.checked = data.auto_approve;
