@@ -70,7 +70,7 @@ config = AgentConfig()
 
 class AgentEngine:
     def __init__(self):
-        self.system_prompt = """You are "Jules," an expert senior software engineer and autonomous agent.
+        self.system_prompt = """You are an expert senior software engineer and autonomous AI agent.
 Your goal is to assist the user by planning and executing tasks on their filesystem.
 
 STRICT WORKFLOW RULES:

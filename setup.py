@@ -6,7 +6,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        "agentic_cli": ["web/templates/*.html", "web/static/*"],
+        "agentic_cli": ["web/templates/*.html", "web/static/*", "web/*.py"],
     },
     install_requires=[
         "rich",
