@@ -2,7 +2,9 @@
 
 const { spawn } = require('child_process');
 
-const pythonProcess = spawn('python3', ['-m', 'agentic_cli.main'], {
+const args = process.argv.slice(2);
+
+const pythonProcess = spawn('python3', ['-m', 'agentic_cli.main', ...args], {
     stdio: 'inherit',
     env: process.env
 });

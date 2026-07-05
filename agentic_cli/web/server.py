@@ -6,7 +6,17 @@ import threading
 import time
 from agentic_cli.engine import AgentEngine, config
 
-app = Flask(__name__)
+import sys
+
+# Ensure templates and static files are found when installed as a tool
+if getattr(sys, 'frozen', False):
+    template_folder = os.path.join(sys._MEIPASS, 'agentic_cli', 'web', 'templates')
+    static_folder = os.path.join(sys._MEIPASS, 'agentic_cli', 'web', 'static')
+else:
+    template_folder = os.path.join(os.path.dirname(__file__), 'templates')
+    static_folder = os.path.join(os.path.dirname(__file__), 'static')
+
+app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
 CORS(app)
 
 # Global engine state for the web session

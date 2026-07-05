@@ -21,6 +21,50 @@ custom_theme = Theme({
 })
 console = Console(theme=custom_theme)
 
+def interactive_setup():
+    from rich.prompt import Prompt
+    from rich.table import Table
+
+    while True:
+        console.clear()
+        console.print(Panel(Text("Agentic CLI Settings", style="bold white", justify="center"), border_style="blue"))
+
+        table = Table(show_header=True, header_style="bold magenta", expand=True)
+        table.add_column("Option", style="cyan", width=20)
+        table.add_column("Value", style="green")
+
+        table.add_row("1. Backend", config.backend)
+        table.add_row("2. Model", config.current_model)
+        table.add_row("3. OpenRouter Key", "***" if config.data["openrouter"]["key"] else "Not Set")
+        table.add_row("4. Auto-Approve", str(config.auto_approve))
+        table.add_row("5. Launch Web UI", "http://localhost:5000")
+        table.add_row("0. Back to Chat", "")
+
+        console.print(table)
+
+        choice = Prompt.ask("\nChoose an option", choices=["1", "2", "3", "4", "5", "0"], default="0")
+
+        if choice == "1":
+            backend = Prompt.ask("Select backend", choices=["openrouter", "openai", "anthropic", "gemini"], default=config.backend)
+            config.backend = backend
+        elif choice == "2":
+            model = Prompt.ask("Enter model name", default=config.current_model)
+            config.data[config.backend]["model"] = model
+        elif choice == "3":
+            key = Prompt.ask("Enter OpenRouter API Key", password=True)
+            if key: config.data["openrouter"]["key"] = key
+        elif choice == "4":
+            config.auto_approve = not config.auto_approve
+            console.print(f"[info]Auto-Approve set to: {config.auto_approve}[/info]")
+            time.sleep(1)
+        elif choice == "5":
+            from agentic_cli.web.server import run_web_ui
+            run_web_ui()
+        elif choice == "0":
+            break
+
+        config.save()
+
 def chat_loop(auto_pilot=False):
     engine = AgentEngine()
 
@@ -33,14 +77,33 @@ def chat_loop(auto_pilot=False):
         else: return
 
     console.print(Panel(Text(f"Agentic CLI | {config.current_model} | {'Auto-Pilot' if auto_pilot else 'Manual'}", style="bold white", justify="center"), border_style="blue"))
+    console.print("[info]Commands: /setup, /auto, /manual, /clear, exit[/info]")
 
     while True:
         try:
-            current_info = f"({config.backend}:{config.current_model})"
+            mode_str = "AUTO" if auto_pilot else "MANUAL"
+            current_info = f"({config.backend}:{config.current_model} | {mode_str})"
             user_input = console.input(f"\n[user]user {current_info}[/user] > ")
 
             if not user_input.strip(): continue
             if user_input.lower() in ['exit', 'quit']: break
+
+            if user_input.startswith("/"):
+                cmd = user_input.split()[0].lower()
+                if cmd == "/setup":
+                    interactive_setup()
+                elif cmd == "/auto":
+                    auto_pilot = True
+                    console.print("[info]Switched to Auto-Pilot mode.[/info]")
+                elif cmd == "/manual":
+                    auto_pilot = False
+                    console.print("[info]Switched to Manual mode.[/info]")
+                elif cmd == "/clear":
+                    engine.messages = [{"role": "system", "content": engine.system_prompt}]
+                    console.print("[info]Chat history cleared.[/info]")
+                else:
+                    console.print("[danger]Unknown command.[/danger]")
+                continue
 
             engine.messages.append({"role": "user", "content": user_input})
 

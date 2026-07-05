@@ -4,10 +4,11 @@ A high-polish, lightweight AI coding assistant for Android Termux, powered by Op
 
 ## Features
 - **Ultra-Lightweight**: Only depends on `rich` and `requests`. No heavy UI frameworks.
-- **Autonomous Workflow**: The agent can plan and execute multiple tasks in sequence.
-- **Interactive TUI-feel**: Uses `rich` for a modern, colorful terminal experience with Markdown support.
-- **Browser-Based UI**: A modern web interface (inspired by OpenCode/Claude Code) for a GUI chat experience.
-- **Optimized for Termux**: Fast installation and minimal CPU/RAM usage.
+- **Auto-Pilot Mode**: The agent can plan and execute tasks fully autonomously.
+- **Modern Web Dashboard**: A professional streaming interface launched with `--web`.
+- **Interactive Setup**: Easy API key and model management via `/setup`.
+- **Ultra-Lightweight**: Zero-cost inference and minimal dependency footprint.
+- **Optimized for Termux**: Built specifically for mobile developer workflows.
 
 ## Installation (Termux)
 
