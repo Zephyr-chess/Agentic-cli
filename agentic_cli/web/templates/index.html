@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenCode.ai | Local Agent</title>
+    <title>OpenCode.ai | Agentic</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -11,167 +11,150 @@
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['IBM Plex Mono', 'monospace'],
-                    },
-                    colors: {
-                        opencode: {
-                            black: '#000000',
-                            zinc: '#111111',
-                            gray: '#1c1c1c',
-                            border: '#2a2a2a',
-                            text: '#f5f5f5',
-                            dim: '#a1a1aa',
-                            accent: '#ffffff'
-                        }
-                    }
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['IBM Plex Mono', 'monospace'] },
+                    colors: { opencode: { black: '#000000', zinc: '#0a0a0a', border: '#1a1a1a', text: '#efeff1', dim: '#71717a', accent: '#ffffff' } }
                 }
             }
         }
     </script>
     <style>
-        body { background-color: #000; color: #f5f5f5; }
+        body { background-color: #000; color: #efeff1; height: 100vh; display: flex; flex-direction: column; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .code-block { background-color: #0a0a0a; border: 1px solid #222; }
-        .thought-item { border-left: 2px solid #333; padding-left: 1.5rem; margin-bottom: 1.5rem; }
-        input, textarea, select { background: transparent; border: 1px solid #333; }
-        .message-user { border-bottom: 1px solid #1a1a1a; padding: 2rem 0; }
-        .message-assistant { padding: 2rem 0; }
+        .code-block { background-color: #050505; border: 1px solid #1a1a1a; }
+        input, textarea, select { background: transparent; border: 1px solid #1a1a1a; }
+        .message-user { border-top: 1px solid #111; padding: 2.5rem 0; }
+        .message-assistant { padding: 2.5rem 0; }
+        #chat-window { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+        .input-container { border-top: 1px solid #111; background: rgba(0,0,0,0.8); backdrop-blur: 10px; }
     </style>
 </head>
 <body class="font-sans antialiased overflow-hidden selection:bg-zinc-800">
-    <div class="flex h-screen w-full">
+    <div class="flex h-full w-full">
         <!-- Sidebar -->
-        <aside class="w-64 bg-opencode-zinc border-r border-opencode-border flex flex-col hidden md:flex">
+        <aside class="w-64 bg-opencode-zinc border-r border-opencode-border flex flex-col hidden md:flex shrink-0">
             <div class="p-6">
-                <div class="flex items-center space-x-2 mb-8">
+                <div class="flex items-center space-x-2 mb-10">
                     <svg width="24" height="24" viewBox="0 0 234 42" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-24">
-                        <path d="M18 30H6V18H18V30Z" fill="#F1ECEC"/>
-                        <path d="M18 12H6V30H18V12ZM24 36H0V6H24V36Z" fill="#B7B1B1"/>
-                        <path d="M48 30H36V18H48V30Z" fill="#F1ECEC"/>
-                        <path d="M36 30H48V12H36V30ZM54 36H36V42H30V6H54V36Z" fill="#B7B1B1"/>
+                        <path d="M18 30H6V18H18V30Z" fill="#fff"/>
+                        <path d="M18 12H6V30H18V12ZM24 36H0V6H24V36Z" fill="#333"/>
+                        <path d="M48 30H36V18H48V30Z" fill="#fff"/>
+                        <path d="M36 30H48V12H36V30ZM54 36H36V42H30V6H54V36Z" fill="#333"/>
                     </svg>
                 </div>
-
-                <nav class="space-y-6">
-                    <div class="space-y-1">
-                        <button class="w-full flex items-center justify-between px-3 py-2 text-sm text-opencode-dim hover:bg-zinc-900 rounded-lg transition-colors">
-                            <span class="flex items-center"><i class="fas fa-plus mr-3 text-xs"></i> New Session</span>
-                        </button>
-                    </div>
-
+                <nav class="space-y-8">
+                    <button class="w-full flex items-center px-3 py-2 text-xs font-bold text-white bg-zinc-900 rounded-lg border border-zinc-800 hover:border-zinc-700 transition-all">
+                        <i class="fas fa-plus mr-3"></i> NEW SESSION
+                    </button>
                     <div>
-                        <h3 class="px-3 text-[10px] font-bold text-opencode-dim uppercase tracking-widest mb-3">Recent</h3>
-                        <div class="space-y-1 text-sm text-opencode-dim">
-                            <div class="px-3 py-2 hover:bg-zinc-900 rounded-lg cursor-pointer truncate">Project Initialization</div>
-                            <div class="px-3 py-2 hover:bg-zinc-900 rounded-lg cursor-pointer truncate">Bug fixing main.py</div>
+                        <h3 class="px-3 text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-4">Workspace</h3>
+                        <div id="file-list" class="space-y-1 text-sm text-opencode-dim">
+                            <div class="px-3 py-1.5 hover:text-white transition-colors cursor-pointer truncate">agentic_cli/</div>
+                            <div class="px-3 py-1.5 hover:text-white transition-colors cursor-pointer truncate pl-6">main.py</div>
                         </div>
                     </div>
                 </nav>
             </div>
-
-            <div class="mt-auto p-6 space-y-4">
-                <button id="settings-btn" class="w-full flex items-center px-3 py-2 text-sm text-opencode-dim hover:bg-zinc-900 rounded-lg transition-colors">
-                    <i class="fas fa-cog mr-3"></i> Settings
+            <div class="mt-auto p-6">
+                <button id="settings-btn" class="w-full flex items-center px-3 py-2 text-xs font-bold text-zinc-500 hover:text-white transition-colors uppercase tracking-widest">
+                    <i class="fas fa-sliders mr-3"></i> Settings
                 </button>
             </div>
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 flex flex-col bg-black relative">
+        <div class="flex-1 flex flex-col min-w-0 bg-black">
             <!-- Header -->
-            <header class="h-14 border-b border-opencode-border flex items-center justify-between px-6 bg-black z-20">
+            <header class="h-14 border-b border-opencode-border flex items-center justify-between px-8 bg-black/50 backdrop-blur-md shrink-0">
                 <div class="flex items-center space-x-4">
-                    <div class="text-xs font-medium text-opencode-dim flex items-center">
-                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2"></span>
-                        <span id="model-id">...</span>
+                    <div class="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center">
+                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-3 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                        <span id="model-id" class="text-zinc-300">...</span>
                     </div>
                 </div>
-
-                <div class="flex items-center space-x-2">
-                    <div class="flex items-center bg-zinc-900 rounded-md px-2 py-1 text-[10px] font-bold text-opencode-dim uppercase">
-                        <span class="mr-2">Auto</span>
-                        <input type="checkbox" id="auto-pilot-toggle" class="cursor-pointer">
-                    </div>
+                <div class="flex items-center bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-1.5 space-x-3">
+                    <span class="text-[10px] font-black text-zinc-500 uppercase tracking-tighter">Auto Pilot</span>
+                    <input type="checkbox" id="auto-pilot-toggle" class="w-3 h-3 accent-white cursor-pointer">
                 </div>
             </header>
 
-            <!-- Chat Container -->
-            <div id="chat-window" class="flex-1 overflow-y-auto scrollbar-hide">
-                <div class="max-w-3xl mx-auto px-6 py-12 space-y-4" id="chat-content">
-                    <div class="message-assistant">
-                        <div class="flex items-start space-x-4">
-                            <div class="text-sm leading-relaxed text-opencode-text">
-                                Hello. I'm the OpenCode agent. How can I help you today?
-                            </div>
-                        </div>
+            <!-- Chat Scroll Area -->
+            <div id="chat-window" class="scrollbar-hide">
+                <div class="max-w-3xl mx-auto px-6 py-12" id="chat-content">
+                    <div class="message-assistant animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <div class="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-4">Assistant</div>
+                        <div class="text-sm leading-relaxed text-opencode-text">Hello. System is operational. How can I assist you?</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Input Area -->
-            <div class="max-w-3xl mx-auto w-full px-6 pb-8 bg-black">
-                <div class="relative group">
+            <!-- Fixed Input Bar -->
+            <div class="input-container shrink-0 p-8 pb-10">
+                <div class="max-w-3xl mx-auto relative">
                     <textarea id="user-input"
-                        class="w-full bg-zinc-900/50 border border-opencode-border group-focus-within:border-opencode-dim rounded-xl px-4 py-4 pr-12 text-sm focus:outline-none transition-all resize-none placeholder-opencode-dim"
-                        placeholder="Message OpenCode..." rows="1"></textarea>
-                    <button id="send-btn" class="absolute right-3 bottom-3 text-opencode-dim hover:text-white transition-colors">
-                        <i class="fas fa-arrow-up"></i>
+                        class="w-full bg-zinc-900/30 border border-zinc-800 focus:border-zinc-500 rounded-xl px-5 py-4 pr-14 text-sm focus:outline-none transition-all resize-none placeholder-zinc-700 min-h-[56px] max-h-48"
+                        placeholder="Type a message..." rows="1"></textarea>
+                    <button id="send-btn" class="absolute right-4 bottom-3 w-8 h-8 bg-white text-black rounded-lg flex items-center justify-center hover:bg-zinc-200 transition-all transform active:scale-95 shadow-xl shadow-white/5">
+                        <i class="fas fa-arrow-up text-xs"></i>
                     </button>
                 </div>
             </div>
-        </main>
+        </div>
     </div>
 
-    <!-- Modals (OpenCode Style) -->
-    <div id="settings-modal" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden items-center justify-center z-[100]">
-        <div class="bg-opencode-zinc p-8 border border-opencode-border max-w-lg w-full rounded-2xl shadow-2xl">
-            <h3 class="text-lg font-bold mb-8">Settings</h3>
-            <div class="space-y-6">
-                <div class="space-y-2">
-                    <label class="text-xs text-opencode-dim uppercase font-bold">Model Provider</label>
-                    <select id="backend-select" class="w-full p-3 text-sm rounded-lg outline-none">
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/95 backdrop-blur-sm hidden items-center justify-center z-[100] p-6">
+        <div class="bg-opencode-zinc p-10 border border-opencode-border max-w-lg w-full rounded-2xl shadow-2xl">
+            <h3 class="text-xs font-black text-white uppercase tracking-[0.3em] mb-10 text-center">Configuration</h3>
+            <div class="space-y-8">
+                <div class="space-y-3">
+                    <label class="text-[10px] text-zinc-600 uppercase font-black tracking-widest">Inference Provider</label>
+                    <select id="backend-select" class="w-full p-4 text-sm rounded-xl border border-zinc-800 outline-none text-white appearance-none cursor-pointer hover:border-zinc-600 transition-colors">
                         <option value="openrouter">OpenRouter</option>
                         <option value="openai">OpenAI</option>
                         <option value="anthropic">Anthropic</option>
                     </select>
                 </div>
-                <div class="space-y-2">
-                    <label class="text-xs text-opencode-dim uppercase font-bold">Model ID</label>
-                    <input type="text" id="model-input" class="w-full p-3 text-sm rounded-lg outline-none" placeholder="qwen/qwen3-coder:free">
+                <div class="space-y-3">
+                    <label class="text-[10px] text-zinc-600 uppercase font-black tracking-widest">Model Identifier</label>
+                    <input type="text" id="model-input" class="w-full p-4 text-sm rounded-xl border border-zinc-800 outline-none text-white focus:border-zinc-500 transition-colors">
                 </div>
-                <div class="space-y-2">
-                    <label class="text-xs text-opencode-dim uppercase font-bold">API Key</label>
-                    <input type="password" id="key-input" class="w-full p-3 text-sm rounded-lg outline-none" placeholder="sk-...">
+                <div class="space-y-3">
+                    <label class="text-[10px] text-zinc-600 uppercase font-black tracking-widest">Secret API Key</label>
+                    <input type="password" id="key-input" class="w-full p-4 text-sm rounded-xl border border-zinc-800 outline-none text-white focus:border-zinc-500 transition-colors">
                 </div>
-                <div class="flex justify-end pt-4 space-x-4">
-                    <button id="close-settings" class="text-sm text-opencode-dim hover:text-white">Cancel</button>
-                    <button id="save-settings" class="bg-white text-black px-6 py-2 text-sm font-bold rounded-lg hover:bg-zinc-200">Save</button>
+                <div class="flex pt-6 space-x-4">
+                    <button id="close-settings" class="flex-1 py-4 text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-widest">Cancel</button>
+                    <button id="save-settings" class="flex-1 bg-white text-black py-4 text-[10px] font-black rounded-xl hover:bg-zinc-200 uppercase tracking-widest transition-all">Save Changes</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Tool Modal -->
-    <div id="tool-modal" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[90]">
-        <div class="max-w-md w-full p-8 border border-opencode-border rounded-xl bg-zinc-900 shadow-2xl">
-            <div class="flex items-center space-x-3 mb-6">
-                <i class="fas fa-terminal text-emerald-400"></i>
-                <h3 class="font-bold uppercase text-xs tracking-widest">Execute Action?</h3>
+    <div id="tool-modal" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[90] p-6">
+        <div class="max-w-md w-full p-10 border border-opencode-border rounded-2xl bg-zinc-900 shadow-2xl">
+            <div class="flex items-center space-x-4 mb-8">
+                <div class="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
+                    <i class="fas fa-terminal text-emerald-500 text-sm"></i>
+                </div>
+                <div>
+                    <h3 class="font-black uppercase text-[10px] tracking-widest text-zinc-400">Security Check</h3>
+                    <p class="text-xs font-medium text-white">Approve Tool Execution?</p>
+                </div>
             </div>
-            <div class="bg-black p-4 rounded-lg border border-zinc-800 mb-8 overflow-hidden">
-                <div id="modal-tool-name" class="text-[10px] font-mono text-zinc-500 mb-2"></div>
-                <pre id="modal-tool-args" class="text-xs font-mono text-zinc-300 overflow-x-auto whitespace-pre-wrap max-h-40 scrollbar-hide"></pre>
+            <div class="bg-black p-5 rounded-xl border border-zinc-800 mb-10 overflow-hidden">
+                <div id="modal-tool-name" class="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-3">...</div>
+                <pre id="modal-tool-args" class="text-xs font-mono text-zinc-400 overflow-x-auto whitespace-pre-wrap max-h-40 scrollbar-hide"></pre>
             </div>
-            <div class="flex space-x-4">
-                <button id="tool-reject" class="flex-1 py-3 text-xs font-bold text-zinc-500 hover:text-white transition-colors">Reject</button>
-                <button id="tool-approve" class="flex-1 py-3 text-xs font-bold bg-white text-black rounded-lg hover:bg-zinc-200 transition-colors">Confirm</button>
+            <div class="flex space-x-3">
+                <button id="tool-reject" class="flex-1 py-4 text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-widest transition-colors">Decline</button>
+                <button id="tool-approve" class="flex-1 py-4 text-[10px] font-black bg-white text-black rounded-xl hover:bg-zinc-200 uppercase tracking-widest transition-all">Execute</button>
             </div>
         </div>
     </div>
 
     <script>
+        const chatWindow = document.getElementById('chat-window');
         const chatContent = document.getElementById('chat-content');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
@@ -183,41 +166,32 @@
         function createMessage(role, content = '') {
             const wrapper = document.createElement('div');
             wrapper.className = role === 'user' ? 'message-user' : 'message-assistant';
-
-            if (role === 'user') {
-                wrapper.innerHTML = `
-                    <div class="text-sm leading-relaxed text-zinc-400 font-medium">User</div>
-                    <div class="text-sm leading-relaxed text-opencode-text mt-2">${content}</div>
-                `;
-            } else {
-                wrapper.innerHTML = `
-                    <div class="text-sm leading-relaxed text-zinc-400 font-medium">Assistant</div>
-                    <div class="message-body text-sm leading-relaxed text-opencode-text mt-2">${content}</div>
-                `;
-            }
+            wrapper.innerHTML = `
+                <div class="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-4">${role === 'user' ? 'Operator' : 'Assistant'}</div>
+                <div class="message-body text-sm leading-relaxed text-opencode-text">${content}</div>
+            `;
             chatContent.appendChild(wrapper);
-            wrapper.scrollIntoView({ behavior: 'smooth' });
+            chatWindow.scrollTop = chatWindow.scrollHeight;
             return wrapper.querySelector('.message-body');
         }
 
         function addToolOutput(name, result) {
             const div = document.createElement('div');
-            div.className = "my-6 code-block p-4 rounded-lg overflow-hidden";
+            div.className = "my-10 code-block p-6 rounded-2xl overflow-hidden shadow-2xl";
             div.innerHTML = `
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-[10px] font-mono text-zinc-500 uppercase">${name}</span>
-                    <i class="fas fa-check text-[8px] text-emerald-500"></i>
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em]">${name}</span>
+                    <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
                 </div>
-                <pre class="text-xs font-mono text-zinc-300 overflow-x-auto whitespace-pre-wrap">${result}</pre>
+                <pre class="text-xs font-mono text-zinc-400 overflow-x-auto whitespace-pre-wrap">${result}</pre>
             `;
             chatContent.appendChild(div);
-            div.scrollIntoView({ behavior: 'smooth' });
+            chatWindow.scrollTop = chatWindow.scrollHeight;
         }
 
         async function handleSend() {
             const text = userInput.value.trim();
             if (!text) return;
-
             createMessage('user', text);
             userInput.value = '';
             userInput.style.height = 'auto';
@@ -231,12 +205,11 @@
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
-                lastThoughtElement = createMessage('assistant', '...');
+                lastThoughtElement = createMessage('assistant', 'Thinking...');
 
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
-
                     const chunks = decoder.decode(value).split('\n\n');
                     for (const chunk of chunks) {
                         if (chunk.startsWith('data: ')) {
@@ -256,7 +229,7 @@
                     }
                 }
             } catch (err) {
-                if (lastThoughtElement) lastThoughtElement.innerText = "Error: " + err.message;
+                if (lastThoughtElement) lastThoughtElement.innerText = "Connection Error: " + err.message;
             }
         }
 
@@ -266,14 +239,10 @@
             const response = await fetch('/approve', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    action: approved ? 'approve' : 'reject',
-                    name: pendingTool.name,
-                    args: pendingTool.args
-                })
+                body: JSON.stringify({ action: approved ? 'approve' : 'reject', name: pendingTool.name, args: pendingTool.args })
             });
             const result = await response.json();
-            addToolOutput(pendingTool.name, approved ? result.result : "REJECTED");
+            addToolOutput(pendingTool.name, approved ? result.result : "REJECTED BY OPERATOR");
         }
 
         sendBtn.onclick = handleSend;
@@ -282,7 +251,6 @@
         document.getElementById('tool-approve').onclick = () => processApproval(true);
         document.getElementById('tool-reject').onclick = () => processApproval(false);
 
-        // Settings
         const settingsModal = document.getElementById('settings-modal');
         document.getElementById('settings-btn').onclick = () => settingsModal.classList.replace('hidden', 'flex');
         document.getElementById('close-settings').onclick = () => settingsModal.classList.replace('flex', 'hidden');

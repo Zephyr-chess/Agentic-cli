@@ -70,21 +70,22 @@ def chat_loop(auto_pilot=False):
     engine = AgentEngine()
 
     if not config.data["openrouter"]["key"]:
-        console.print(Panel("Welcome! Please set your OpenRouter API Key.", style="blue"))
-        key = input("OpenRouter Key > ").strip()
+        console.print(Panel(Text("AGENTIC CLI v3\n\nPlease enter your OpenRouter API Key", justify="center"), style="bold blue", padding=(1, 2)))
+        key = console.input("[bold yellow]Key > [/bold yellow]").strip()
         if key:
             config.data["openrouter"]["key"] = key
             config.save()
         else: return
 
-    console.print(Panel(Text(f"Agentic CLI | {config.current_model} | {'Auto-Pilot' if auto_pilot else 'Manual'}", style="bold white", justify="center"), border_style="blue"))
-    console.print("[info]Commands: /setup, /auto, /manual, /clear, exit[/info]")
+    console.clear()
+    console.print(f"[dim]Backend: {config.backend} | Model: {config.current_model}[/dim]")
+    console.print(f"[dim]Mode: {'AUTO-PILOT' if auto_pilot else 'MANUAL'} | Type '/help' for commands[/dim]\n")
 
     while True:
         try:
             mode_str = "AUTO" if auto_pilot else "MANUAL"
-            current_info = f"({config.backend}:{config.current_model} | {mode_str})"
-            user_input = console.input(f"\n[user]user {current_info}[/user] > ")
+            current_info = f"[bold cyan]op > [/bold cyan]"
+            user_input = console.input(current_info)
 
             if not user_input.strip(): continue
             if user_input.lower() in ['exit', 'quit']: break
@@ -95,13 +96,16 @@ def chat_loop(auto_pilot=False):
                     interactive_setup()
                 elif cmd == "/auto":
                     auto_pilot = True
-                    console.print("[info]Switched to Auto-Pilot mode.[/info]")
+                    console.print("[info]✓ Auto-Pilot Enabled[/info]")
                 elif cmd == "/manual":
                     auto_pilot = False
-                    console.print("[info]Switched to Manual mode.[/info]")
+                    console.print("[info]✓ Manual Mode Enabled[/info]")
                 elif cmd == "/clear":
                     engine.messages = [{"role": "system", "content": engine.system_prompt}]
-                    console.print("[info]Chat history cleared.[/info]")
+                    console.clear()
+                    console.print("[dim]Chat history cleared.[/dim]\n")
+                elif cmd == "/help":
+                    console.print("[info]Commands: /setup, /auto, /manual, /clear, exit[/info]")
                 else:
                     console.print("[danger]Unknown command.[/danger]")
                 continue
@@ -110,11 +114,15 @@ def chat_loop(auto_pilot=False):
 
             while True:
                 response_text = ""
-                with Live(Spinner("dots", text="Thinking...", style="cyan"), refresh_per_second=10, console=console, transient=True) as live:
+                with Live(Spinner("dots", text="", style="cyan"), refresh_per_second=10, console=console, transient=True) as live:
                     for text_chunk in engine.get_completion():
                         response_text = text_chunk
-                        if "<tool>" not in response_text: live.update(Markdown(response_text))
-                        else: live.update(Text(response_text))
+                        if "<tool>" not in response_text:
+                            # Only update if there is actual content to render
+                            if response_text.strip():
+                                live.update(Markdown(response_text))
+                        else:
+                            live.update(Text("[streaming tool call...]"))
 
                 if not response_text: break
                 engine.messages.append({"role": "assistant", "content": response_text})
