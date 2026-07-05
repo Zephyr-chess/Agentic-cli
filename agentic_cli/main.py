@@ -40,23 +40,30 @@ def interactive_setup():
         table.add_row("2. Model", config.current_model)
         table.add_row("3. Auto-Approve", "[green]Enabled[/green]" if config.auto_approve else "[red]Disabled[/red]")
         table.add_row("4. API Keys", "Manage keys...")
-        table.add_row("5. Launch Web UI", "http://localhost:5000")
+        table.add_row("5. Zen Models", "Quick switch to Zen")
+        table.add_row("6. Launch Web UI", "http://localhost:5000")
         table.add_row("0. Exit Setup", "")
 
         console.print(table)
-        choice = Prompt.ask("Selection", choices=["1", "2", "3", "4", "5", "0"], default="0")
+        choice = Prompt.ask("Selection", choices=["1", "2", "3", "4", "5", "6", "0"], default="0")
 
         if choice == "1":
-            config.backend = Prompt.ask("Provider", choices=["openrouter", "openai", "anthropic", "gemini"], default=config.backend)
+            config.backend = Prompt.ask("Provider", choices=["openrouter", "openai", "anthropic", "gemini", "opencode_zen"], default=config.backend)
         elif choice == "2":
             config.data[config.backend]["model"] = Prompt.ask("Model ID", default=config.current_model)
         elif choice == "3":
             config.auto_approve = not config.auto_approve
         elif choice == "4":
-            p = Prompt.ask("Select Provider", choices=["openrouter", "openai", "anthropic", "gemini"])
+            p = Prompt.ask("Select Provider", choices=["openrouter", "openai", "anthropic", "gemini", "opencode_zen"])
             k = Prompt.ask(f"Enter {p.upper()} Key", password=True)
             if k: config.data[p]["key"] = k
         elif choice == "5":
+            zen_model = Prompt.ask("Select Zen Model", choices=["big-pickle", "mimo-v2-pro-free", "minimax-m2.5-free", "nemotron-3-super-free"], default="big-pickle")
+            config.backend = "opencode_zen"
+            config.data["opencode_zen"]["model"] = zen_model
+            console.print(f"[green]Switched to OpenCode Zen: {zen_model}[/green]")
+            time.sleep(1)
+        elif choice == "6":
             from agentic_cli.web.server import run_web_ui
             run_web_ui()
         elif choice == "0":

@@ -41,6 +41,7 @@ class AgentConfig:
             "openai": {"model": "gpt-4o", "key": ""},
             "anthropic": {"model": "claude-3-5-sonnet-20240620", "key": ""},
             "gemini": {"model": "gemini-1.5-pro", "key": ""},
+            "opencode_zen": {"model": "big-pickle", "key": ""},
         }
 
     def save(self):
@@ -129,6 +130,7 @@ Available tools: read_file(path), write_file(path, content), execute_command(cmd
         if backend == "openai": url = "https://api.openai.com/v1/chat/completions"
         elif backend == "anthropic": url = "https://api.anthropic.com/v1/messages"
         elif backend == "gemini": url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        elif backend == "opencode_zen": url = "https://opencode.ai/zen/v1/chat/completions"
 
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
         if backend == "anthropic":
