@@ -83,6 +83,20 @@ def chat():
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
+@app.route('/update_config', methods=['POST'])
+def update_config():
+    data = request.json
+    backend = data.get('backend')
+    model = data.get('model')
+    key = data.get('key')
+
+    if backend: config.backend = backend
+    if model: config.data[config.backend]["model"] = model
+    if key: config.data[config.backend]["key"] = key
+
+    config.save()
+    return jsonify({"status": "success"})
+
 @app.route('/approve', methods=['POST'])
 def approve():
     action = request.json.get('action') # 'approve' or 'reject'
