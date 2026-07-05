@@ -21,6 +21,7 @@ class AgentConfig:
             try:
                 with open(CONFIG_PATH, 'r') as f:
                     loaded = json.load(f)
+                # Robust merge
                 self.data = defaults
                 for key, value in loaded.items():
                     if isinstance(value, dict) and key in self.data:
@@ -84,23 +85,25 @@ STRICT WORKFLOW RULES:
 
 Available tools: read_file(path), write_file(path, content), execute_command(cmd)"""
         self.messages = [{"role": "system", "content": self.system_prompt}]
+        self._last_request_time = 0
 
     def execute_tool(self, name: str, args: dict) -> str:
         try:
             if name == "read_file":
                 path = args.get('path')
-                if not path: return "Error: Missing 'path' argument"
+                if not path: return "Error: Missing 'path'"
                 with open(path, 'r', encoding='utf-8') as f: return f.read()
             elif name == "write_file":
                 path = args.get('path')
                 content = args.get('content', '')
-                if not path: return "Error: Missing 'path' argument"
+                if not path: return "Error: Missing 'path'"
                 with open(path, 'w', encoding='utf-8') as f: f.write(content)
                 return f"Successfully written to {path}"
             elif name == "execute_command":
                 cmd = args.get('cmd')
-                if not cmd: return "Error: Missing 'cmd' argument"
-                res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
+                if not cmd: return "Error: Missing 'cmd'"
+                # Longer timeout for mobile execution
+                res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
                 return f"STDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}"
             return f"Error: Unknown tool '{name}'"
         except Exception as e:
@@ -112,8 +115,15 @@ Available tools: read_file(path), write_file(path, content), execute_command(cmd
         model = config.data[backend]["model"]
 
         if not key:
-            yield f"Error: API key for {backend} not set."
+            yield f"Error: {backend.upper()} API key not set. Set it in /setup."
             return
+
+        # Rate limiting to respect API tiers
+        now = time.time()
+        elapsed = now - self._last_request_time
+        if elapsed < 1.0: # 1 request per second max to be safe
+            time.sleep(1.0 - elapsed)
+        self._last_request_time = time.time()
 
         url = "https://openrouter.ai/api/v1/chat/completions"
         if backend == "openai": url = "https://api.openai.com/v1/chat/completions"
@@ -128,7 +138,7 @@ Available tools: read_file(path), write_file(path, content), execute_command(cmd
             payload = {"model": model, "messages": self.messages, "stream": stream}
 
         try:
-            response = requests.post(url, headers=headers, json=payload, stream=stream)
+            response = requests.post(url, headers=headers, json=payload, stream=stream, timeout=60)
             response.raise_for_status()
 
             full_content = ""
@@ -142,9 +152,7 @@ Available tools: read_file(path), write_file(path, content), execute_command(cmd
                             try:
                                 data = json.loads(data_str)
                                 if backend == "anthropic":
-                                    if data['type'] == 'content_block_delta':
-                                        content = data['delta']['text']
-                                    else: content = ""
+                                    content = data['delta']['text'] if data['type'] == 'content_block_delta' else ""
                                 else:
                                     content = data['choices'][0]['delta'].get('content', '')
                                 full_content += content
@@ -152,10 +160,7 @@ Available tools: read_file(path), write_file(path, content), execute_command(cmd
                             except: continue
             else:
                 data = response.json()
-                if backend == "anthropic":
-                    full_content = data['content'][0]['text']
-                else:
-                    full_content = data['choices'][0]['message']['content']
+                full_content = data['content'][0]['text'] if backend == "anthropic" else data['choices'][0]['message']['content']
                 yield full_content
         except Exception as e:
-            yield f"Error during inference: {e}"
+            yield f"Inference Error: {str(e)}"
