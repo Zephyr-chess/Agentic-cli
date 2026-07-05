@@ -48,13 +48,13 @@ def interactive_setup():
         choice = Prompt.ask("Selection", choices=["1", "2", "3", "4", "5", "6", "0"], default="0")
 
         if choice == "1":
-            config.backend = Prompt.ask("Provider", choices=["openrouter", "openai", "anthropic", "gemini", "opencode_zen"], default=config.backend)
+            config.backend = Prompt.ask("Provider", choices=["openrouter", "openai", "anthropic", "gemini", "opencode_zen", "nvidia_nim"], default=config.backend)
         elif choice == "2":
             config.data[config.backend]["model"] = Prompt.ask("Model ID", default=config.current_model)
         elif choice == "3":
             config.auto_approve = not config.auto_approve
         elif choice == "4":
-            p = Prompt.ask("Select Provider", choices=["openrouter", "openai", "anthropic", "gemini", "opencode_zen"])
+            p = Prompt.ask("Select Provider", choices=["openrouter", "openai", "anthropic", "gemini", "opencode_zen", "nvidia_nim"])
             k = Prompt.ask(f"Enter {p.upper()} Key", password=True)
             if k: config.data[p]["key"] = k
         elif choice == "5":

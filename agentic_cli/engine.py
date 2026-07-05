@@ -42,6 +42,7 @@ class AgentConfig:
             "anthropic": {"model": "claude-3-5-sonnet-20240620", "key": ""},
             "gemini": {"model": "gemini-1.5-pro", "key": ""},
             "opencode_zen": {"model": "big-pickle", "key": ""},
+            "nvidia_nim": {"model": "meta/llama-3.1-70b-instruct", "key": ""},
         }
 
     def save(self):
@@ -131,6 +132,7 @@ Available tools: read_file(path), write_file(path, content), execute_command(cmd
         elif backend == "anthropic": url = "https://api.anthropic.com/v1/messages"
         elif backend == "gemini": url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
         elif backend == "opencode_zen": url = "https://opencode.ai/zen/v1/chat/completions"
+        elif backend == "nvidia_nim": url = "https://integrate.api.nvidia.com/v1/chat/completions"
 
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
         if backend == "anthropic":
