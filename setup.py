@@ -14,6 +14,7 @@ setup(
         "flask",
         "flask-cors",
         "questionary",
+        "prompt-toolkit",
     ],
     entry_points={
         "console_scripts": [

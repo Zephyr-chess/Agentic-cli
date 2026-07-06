@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenCode.ai | Agentic</title>
+    <title>OpenCLI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -33,19 +33,14 @@
         <aside class="w-64 bg-opencode-zinc border-r border-opencode-border flex flex-col hidden md:flex shrink-0">
             <div class="p-6">
                 <div class="flex items-center space-x-2 mb-10">
-                    <svg width="24" height="24" viewBox="0 0 234 42" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-24">
-                        <path d="M18 30H6V18H18V30Z" fill="#fff"/>
-                        <path d="M18 12H6V30H18V12ZM24 36H0V6H24V36Z" fill="#333"/>
-                        <path d="M48 30H36V18H48V30Z" fill="#fff"/>
-                        <path d="M36 30H48V12H36V30ZM54 36H36V42H30V6H54V36Z" fill="#333"/>
-                    </svg>
+                    <div class="text-white font-black tracking-tighter text-xl italic">OpenCLI</div>
                 </div>
                 <nav class="space-y-8">
                     <button class="w-full flex items-center px-3 py-2 text-xs font-bold text-white bg-zinc-900 rounded-lg border border-zinc-800 hover:border-zinc-700 transition-all">
                         <i class="fas fa-plus mr-3"></i> NEW SESSION
                     </button>
                     <div>
-                        <h3 class="px-3 text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-4">Workspace</h3>
+                        <h3 class="px-3 text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-4">Project</h3>
                         <div id="file-list" class="space-y-1 text-sm text-opencode-dim">
                             <div class="px-3 py-1.5 hover:text-white transition-colors cursor-pointer truncate">agentic_cli/</div>
                             <div class="px-3 py-1.5 hover:text-white transition-colors cursor-pointer truncate pl-6">main.py</div>
@@ -80,8 +75,8 @@
             <div id="chat-window" class="flex-1 overflow-y-auto scrollbar-hide">
                 <div class="max-w-3xl mx-auto px-6 py-12" id="chat-content">
                     <div class="message-assistant">
-                        <div class="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-4">Assistant</div>
-                        <div class="text-sm leading-relaxed text-opencode-text">Hello. System is operational. How can I assist you?</div>
+                        <div class="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-4">System</div>
+                        <div class="text-sm leading-relaxed text-opencode-text">Ready. How can I help you?</div>
                     </div>
                 </div>
             </div>
@@ -91,7 +86,7 @@
                 <div class="max-w-3xl mx-auto relative">
                     <textarea id="user-input"
                         class="w-full bg-zinc-900/30 border border-zinc-800 focus:border-zinc-500 rounded-xl px-5 py-4 pr-14 text-sm focus:outline-none transition-all resize-none placeholder-zinc-700 min-h-[56px] max-h-48"
-                        placeholder="Type a message..." rows="1"></textarea>
+                        placeholder="Message OpenCLI..." rows="1"></textarea>
                     <button id="send-btn" class="absolute right-4 bottom-3 w-8 h-8 bg-white text-black rounded-lg flex items-center justify-center hover:bg-zinc-200 transition-all transform active:scale-95 shadow-xl shadow-white/5">
                         <i class="fas fa-arrow-up text-xs"></i>
                     </button>
@@ -109,16 +104,23 @@
                     <label class="text-[10px] text-zinc-600 uppercase font-black tracking-widest">Inference Provider</label>
                     <select id="backend-select" class="w-full p-4 text-sm rounded-xl border border-zinc-800 outline-none text-white appearance-none cursor-pointer hover:border-zinc-600 transition-colors">
                         <option value="openrouter">OpenRouter</option>
-                        <option value="opencode_zen">OpenCode Zen</option>
+                        <option value="opencode_zen">OpenCLI Zen</option>
                         <option value="nvidia_nim">NVIDIA NIM</option>
                         <option value="openai">OpenAI</option>
                         <option value="anthropic">Anthropic</option>
                         <option value="gemini">Gemini</option>
                     </select>
                 </div>
-                <div class="space-y-3">
+                <div class="space-y-3 relative">
                     <label class="text-[10px] text-zinc-600 uppercase font-black tracking-widest">Model Identifier</label>
-                    <input type="text" id="model-input" class="w-full p-4 text-sm rounded-xl border border-zinc-800 outline-none text-white focus:border-zinc-500 transition-colors">
+                    <input type="text" id="model-input" class="w-full p-4 text-sm rounded-xl border border-zinc-800 outline-none text-white focus:border-zinc-500 transition-colors" list="model-suggestions">
+                    <datalist id="model-suggestions">
+                        <option value="qwen/qwen3-coder:free">
+                        <option value="anthropic/claude-3.5-sonnet">
+                        <option value="openai/gpt-4o">
+                        <option value="google/gemini-pro-1.5">
+                        <option value="nvidia/nemotron-3-ultra-550b-a55b:free">
+                    </datalist>
                 </div>
                 <div class="space-y-3">
                     <label class="text-[10px] text-zinc-600 uppercase font-black tracking-widest">Secret API Key</label>
@@ -169,7 +171,7 @@
             const wrapper = document.createElement('div');
             wrapper.className = role === 'user' ? 'message-user' : 'message-assistant';
             wrapper.innerHTML = `
-                <div class="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-4">${role === 'user' ? 'Operator' : 'Assistant'}</div>
+                <div class="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-4">${role === 'user' ? 'Operator' : 'System'}</div>
                 <div class="message-body text-sm leading-relaxed text-opencode-text">${content}</div>
             `;
             chatContent.appendChild(wrapper);

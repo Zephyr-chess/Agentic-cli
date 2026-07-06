@@ -1,12 +1,14 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Initializing Agentic CLI Setup for Termux..."
+echo "🚀 Initializing OpenCLI Setup..."
 
-# Update and install system dependencies
-echo "📦 Installing system dependencies..."
-pkg update -y
-pkg install -y python git
+# Update and install system dependencies (Termux specific)
+if command -v pkg &> /dev/null; then
+    echo "📦 Installing system dependencies via pkg..."
+    pkg update -y
+    pkg install -y python git
+fi
 
 # uv is much faster for managing tools
 

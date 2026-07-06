@@ -61,7 +61,7 @@ def interactive_setup():
             zen_model = Prompt.ask("Select Zen Model", choices=["big-pickle", "mimo-v2-pro-free", "minimax-m2.5-free", "nemotron-3-super-free"], default="big-pickle")
             config.backend = "opencode_zen"
             config.data["opencode_zen"]["model"] = zen_model
-            console.print(f"[green]Switched to OpenCode Zen: {zen_model}[/green]")
+            console.print(f"[green]Switched to Zen: {zen_model}[/green]")
             time.sleep(1)
         elif choice == "6":
             from agentic_cli.web.server import run_web_ui
@@ -70,8 +70,33 @@ def interactive_setup():
             break
         config.save()
 
+def get_model_completer():
+    from prompt_toolkit.completion import WordCompleter
+    # Default set of popular models for autocomplete
+    models = [
+        "qwen/qwen3-coder:free",
+        "qwen/qwen-2.5-coder-32b-instruct:free",
+        "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "anthropic/claude-3.5-sonnet",
+        "openai/gpt-4o",
+        "google/gemini-pro-1.5",
+        "/setup", "/auto", "/manual", "/clear", "/help", "exit"
+    ]
+    return WordCompleter(models, ignore_case=True)
+
 def chat_loop(auto_pilot=False):
+    from prompt_toolkit import prompt as pt_prompt
+    from prompt_toolkit.history import InMemoryHistory
+    from prompt_toolkit.styles import Style as PTStyle
+
     engine = AgentEngine()
+    history = InMemoryHistory()
+    completer = get_model_completer()
+
+    pt_style = PTStyle.from_dict({
+        'prompt': 'bold #ffffff',
+        'arrow': 'bold #00ffff',
+    })
 
     # Quick Check for current backend key
     if config.backend != "hf" and not config.data[config.backend]["key"]:
@@ -82,9 +107,15 @@ def chat_loop(auto_pilot=False):
 
     while True:
         try:
-            user_input = console.input("[bold]>>> [/bold]")
+            # Use prompt_toolkit for autocomplete and history
+            user_input = pt_prompt(
+                [('class:prompt', 'grok '), ('class:arrow', '>>> ')],
+                history=history,
+                completer=completer,
+                style=pt_style
+            ).strip()
 
-            if not user_input.strip(): continue
+            if not user_input: continue
             if user_input.lower() in ['exit', 'quit']: break
 
             if user_input.startswith("/"):
