@@ -1,0 +1,21 @@
+{
+  "name": "agentic-cli",
+  "version": "1.0.0",
+  "description": "Agentic CLI - Local AI coding assistant for Termux",
+  "main": "index.js",
+  "bin": {
+    "agentic-cli": "./bin/agentic-cli.js"
+  },
+  "scripts": {
+    "postinstall": "echo 'Please ensure you have Python installed and run ./install.sh to complete setup.'"
+  },
+  "keywords": [
+    "agent",
+    "cli",
+    "termux",
+    "ai",
+    "qwen"
+  ],
+  "author": "",
+  "license": "MIT"
+}
